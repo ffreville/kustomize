@@ -33,6 +33,9 @@ type HarnessEnhanced struct {
 	// A file loader using the Harness.fSys to read test data.
 	ldr ifc.Loader
 
+	// A file loader using the Harness.fSys to read test data.
+	rootLdr ifc.Loader
+
 	// A plugin loader that loads plugins from a (real) file system.
 	pl *pLdr.Loader
 }
@@ -92,6 +95,7 @@ func (th *HarnessEnhanced) ResetLoaderRoot(root string) {
 		th.t.Fatalf("Unable to make loader: %v", err)
 	}
 	th.ldr = ldr
+	th.rootLdr = fLdr.NewFileLoaderAtRoot(filesys.MakeFsOnDisk())
 }
 
 func (th *HarnessEnhanced) LoadAndRunGenerator(
@@ -101,7 +105,7 @@ func (th *HarnessEnhanced) LoadAndRunGenerator(
 		th.t.Fatalf("Err: %v", err)
 	}
 	g, err := th.pl.LoadGenerator(
-		th.ldr, valtest_test.MakeFakeValidator(), res)
+		th.ldr, th.rootLdr, valtest_test.MakeFakeValidator(), res)
 	if err != nil {
 		th.t.Fatalf("Err: %v", err)
 	}
@@ -158,7 +162,7 @@ func (th *HarnessEnhanced) RunTransformerFromResMap(
 		th.t.Fatalf("Err: %v", err)
 	}
 	g, err := th.pl.LoadTransformer(
-		th.ldr, valtest_test.MakeFakeValidator(), transConfig)
+		th.ldr, th.rootLdr, valtest_test.MakeFakeValidator(), transConfig)
 	if err != nil {
 		return nil, err
 	}

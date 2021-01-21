@@ -126,7 +126,11 @@ func TestNewFromConfigMaps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	kvLdr := kv.NewLoader(ldr, valtest_test.MakeFakeValidator())
+
+	fSysDisk := filesys.MakeFsOnDisk()
+	rootLdr := loader.NewFileLoaderAtRoot(fSysDisk)
+
+	kvLdr := kv.NewLoader(ldr, rootLdr, valtest_test.MakeFakeValidator())
 	testCases := []testCase{
 		{
 			description: "construct config map from env",
@@ -246,10 +250,12 @@ func TestNewResMapFromSecretArgs(t *testing.T) {
 	}
 	fSys := filesys.MakeFsInMemory()
 	fSys.Mkdir(filesys.SelfDir)
+	fSysDisk := filesys.MakeFsOnDisk()
 
 	actual, err := rmF.NewResMapFromSecretArgs(
 		kv.NewLoader(
 			loader.NewFileLoaderAtRoot(fSys),
+			loader.NewFileLoaderAtRoot(fSysDisk),
 			valtest_test.MakeFakeValidator()), secrets)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

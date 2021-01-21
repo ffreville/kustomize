@@ -31,7 +31,7 @@ func (p *SecretGeneratorPlugin) Config(h *resmap.PluginHelpers, config []byte) (
 
 func (p *SecretGeneratorPlugin) Generate() (resmap.ResMap, error) {
 	return p.h.ResmapFactory().FromSecretArgs(
-		kv.NewLoader(p.h.Loader(), p.h.Validator()), p.SecretArgs)
+		kv.NewLoader(p.h.Loader(), p.h.RootLoader(), p.h.Validator()), p.SecretArgs)
 }
 
 func NewSecretGeneratorPlugin() resmap.GeneratorPlugin {

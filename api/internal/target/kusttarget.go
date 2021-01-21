@@ -26,6 +26,7 @@ import (
 type KustTarget struct {
 	kustomization *types.Kustomization
 	ldr           ifc.Loader
+	rootLdr       ifc.Loader
 	validator     ifc.Validator
 	rFactory      *resmap.Factory
 	pLdr          *loader.Loader
@@ -34,11 +35,13 @@ type KustTarget struct {
 // NewKustTarget returns a new instance of KustTarget.
 func NewKustTarget(
 	ldr ifc.Loader,
+	rootLdr ifc.Loader,
 	validator ifc.Validator,
 	rFactory *resmap.Factory,
 	pLdr *loader.Loader) *KustTarget {
 	return &KustTarget{
 		ldr:       ldr,
+		rootLdr:   rootLdr,
 		validator: validator,
 		rFactory:  rFactory,
 		pLdr:      pLdr,
@@ -250,7 +253,7 @@ func (kt *KustTarget) configureExternalGenerators() ([]resmap.Generator, error) 
 	if err != nil {
 		return nil, err
 	}
-	return kt.pLdr.LoadGenerators(kt.ldr, kt.validator, ra.ResMap())
+	return kt.pLdr.LoadGenerators(kt.ldr, kt.rootLdr, kt.validator, ra.ResMap())
 }
 
 func (kt *KustTarget) runTransformers(ra *accumulator.ResAccumulator) error {
@@ -287,7 +290,7 @@ func (kt *KustTarget) configureExternalTransformers(transformers []string) ([]re
 	if err != nil {
 		return nil, err
 	}
-	return kt.pLdr.LoadTransformers(kt.ldr, kt.validator, ra.ResMap())
+	return kt.pLdr.LoadTransformers(kt.ldr, kt.rootLdr, kt.validator, ra.ResMap())
 }
 
 func (kt *KustTarget) runValidators(ra *accumulator.ResAccumulator) error {
@@ -376,7 +379,7 @@ func (kt *KustTarget) accumulateComponents(
 func (kt *KustTarget) accumulateDirectory(
 	ra *accumulator.ResAccumulator, ldr ifc.Loader, isComponent bool) (*accumulator.ResAccumulator, error) {
 	defer ldr.Cleanup()
-	subKt := NewKustTarget(ldr, kt.validator, kt.rFactory, kt.pLdr)
+	subKt := NewKustTarget(ldr, kt.rootLdr, kt.validator, kt.rFactory, kt.pLdr)
 	err := subKt.Load()
 	if err != nil {
 		return nil, errors.Wrapf(
@@ -435,7 +438,7 @@ func (kt *KustTarget) configureBuiltinPlugin(
 				err, "builtin %s marshal", bpt)
 		}
 	}
-	err = p.Config(resmap.NewPluginHelpers(kt.ldr, kt.validator, kt.rFactory), y)
+	err = p.Config(resmap.NewPluginHelpers(kt.ldr, kt.rootLdr, kt.validator, kt.rFactory), y)
 	if err != nil {
 		return errors.Wrapf(
 			err, "trouble configuring builtin %s with config: `\n%s`", bpt, string(y))

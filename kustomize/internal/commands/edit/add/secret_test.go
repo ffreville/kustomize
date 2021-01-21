@@ -16,10 +16,12 @@ import (
 
 func TestNewCmdAddSecretIsNotNil(t *testing.T) {
 	fSys := filesys.MakeFsInMemory()
+	fSysDisk := filesys.MakeFsOnDisk()
 	if newCmdAddSecret(
 		fSys,
 		kv.NewLoader(
 			loader.NewFileLoaderAtCwd(fSys),
+			loader.NewFileLoaderAtRoot(fSysDisk),
 			valtest_test.MakeFakeValidator()),
 		nil) == nil {
 		t.Fatal("newCmdAddSecret shouldn't be nil")

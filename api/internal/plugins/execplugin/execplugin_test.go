@@ -31,6 +31,8 @@ s/$BAR/bar baz/g
 	if err != nil {
 		t.Fatal(err)
 	}
+	fSysRoot := filesys.MakeFsOnDisk()
+	rootLdr := fLdr.NewFileLoaderAtRoot(fSysRoot)
 	pvd := provider.NewDefaultDepProvider()
 	rf := resmap.NewFactory(
 		pvd.GetResourceFactory(), pvd.GetConflictDetectorFactory())
@@ -59,7 +61,7 @@ s/$BAR/bar baz/g
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
-	p.Config(resmap.NewPluginHelpers(ldr, pvd.GetFieldValidator(), rf), yaml)
+	p.Config(resmap.NewPluginHelpers(ldr, rootLdr, pvd.GetFieldValidator(), rf), yaml)
 
 	expected := "someteam.example.com/v1/sedtransformer/SedTransformer"
 	if !strings.HasSuffix(p.Path(), expected) {

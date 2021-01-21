@@ -31,7 +31,7 @@ func (p *ConfigMapGeneratorPlugin) Config(h *resmap.PluginHelpers, config []byte
 
 func (p *ConfigMapGeneratorPlugin) Generate() (resmap.ResMap, error) {
 	return p.h.ResmapFactory().FromConfigMapArgs(
-		kv.NewLoader(p.h.Loader(), p.h.Validator()), p.ConfigMapArgs)
+		kv.NewLoader(p.h.Loader(), p.h.RootLoader(), p.h.Validator()), p.ConfigMapArgs)
 }
 
 func NewConfigMapGeneratorPlugin() resmap.GeneratorPlugin {

@@ -59,6 +59,8 @@ func TestLoader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	fSysDisk := filesys.MakeFsOnDisk()
+	fRootLdr := loader.NewFileLoaderAtRoot(fSysDisk)
 	generatorConfigs, err := rmF.NewResMapFromBytes([]byte(
 		someServiceGenerator + "---\n" + secretGenerator))
 	if err != nil {
@@ -76,7 +78,7 @@ func TestLoader(t *testing.T) {
 			t.Fatal("expect non-nil loader")
 		}
 		_, err = pLdr.LoadGenerators(
-			fLdr, valtest_test.MakeFakeValidator(), generatorConfigs)
+			fLdr, fRootLdr, valtest_test.MakeFakeValidator(), generatorConfigs)
 		if err != nil {
 			t.Fatal(err)
 		}

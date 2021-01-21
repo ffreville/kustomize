@@ -36,11 +36,16 @@ func makeKustTargetWithRf(
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	fSysDisk := filesys.MakeFsOnDisk()
+	fRootLdr := fLdr.NewFileLoaderAtRoot(fSysDisk)
+
 	rf := resmap.NewFactory(
 		pvd.GetResourceFactory(), pvd.GetConflictDetectorFactory())
 	pc := konfig.DisabledPluginConfig()
 	return target.NewKustTarget(
 		ldr,
+		fRootLdr,
 		valtest_test.MakeFakeValidator(),
 		rf,
 		pLdr.NewLoader(pc, rf))

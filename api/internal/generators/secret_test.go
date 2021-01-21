@@ -205,8 +205,12 @@ data:
 	fSys.WriteFile(
 		filesys.RootedPath("secret", "app.bin"),
 		[]byte{0xff, 0xfd})
+
+	fSysDisk := filesys.MakeFsOnDisk()
+
 	kvLdr := kv.NewLoader(
 		loader.NewFileLoaderAtRoot(fSys),
+		loader.NewFileLoaderAtRoot(fSysDisk),
 		valtest_test.MakeFakeValidator())
 
 	for n := range testCases {

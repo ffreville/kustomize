@@ -18,7 +18,7 @@ import (
 
 // NewCmdEdit returns an instance of 'edit' subcommand.
 func NewCmdEdit(
-	fSys filesys.FileSystem, v ifc.Validator, kf ifc.KunstructuredFactory) *cobra.Command {
+	fSys filesys.FileSystem, fSysDisk filesys.FileSystem, v ifc.Validator, kf ifc.KunstructuredFactory) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "edit",
 		Short: "Edits a kustomization file",
@@ -39,11 +39,11 @@ func NewCmdEdit(
 	c.AddCommand(
 		add.NewCmdAdd(
 			fSys,
-			kv.NewLoader(loader.NewFileLoaderAtCwd(fSys), v),
+			kv.NewLoader(loader.NewFileLoaderAtCwd(fSys), loader.NewFileLoaderAtRoot(fSysDisk), v),
 			kf),
 		set.NewCmdSet(
 			fSys,
-			kv.NewLoader(loader.NewFileLoaderAtCwd(fSys), v),
+			kv.NewLoader(loader.NewFileLoaderAtCwd(fSys), loader.NewFileLoaderAtRoot(fSysDisk), v),
 			v),
 		fix.NewCmdFix(fSys),
 		remove.NewCmdRemove(fSys, v),

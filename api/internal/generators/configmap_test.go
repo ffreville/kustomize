@@ -197,8 +197,12 @@ data:
 	fSys.WriteFile(
 		filesys.RootedPath("configmap", "app.bin"),
 		manyHellos(30))
+
+	fSysDisk := filesys.MakeFsOnDisk()
+
 	kvLdr := kv.NewLoader(
 		loader.NewFileLoaderAtRoot(fSys),
+		loader.NewFileLoaderAtRoot(fSysDisk),
 		valtest_test.MakeFakeValidator())
 
 	for n := range testCases {

@@ -138,8 +138,12 @@ func TestConstructSecret(t *testing.T) {
 	fSys := filesys.MakeFsInMemory()
 	fSys.WriteFile("/secret/app.env", []byte("DB_USERNAME=admin\nDB_PASSWORD=somepw\n"))
 	fSys.WriteFile("/secret/app-init.ini", []byte("FOO=bar\nBAR=baz\n"))
+
+	fSysDisk := filesys.MakeFsOnDisk()
+
 	kvLdr := kv.NewLoader(
 		loader.NewFileLoaderAtRoot(fSys),
+		loader.NewFileLoaderAtRoot(fSysDisk),
 		valtest_test.MakeFakeValidator())
 	for _, tc := range testCases {
 		f := NewFactory(kvLdr)

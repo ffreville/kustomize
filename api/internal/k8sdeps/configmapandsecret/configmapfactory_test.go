@@ -174,8 +174,12 @@ func TestConstructConfigMap(t *testing.T) {
 	fSys.WriteFile(
 		filesys.RootedPath("configmap", "app.bin"),
 		[]byte{0xff, 0xfd})
+
+	fSysDisk := filesys.MakeFsOnDisk()
+
 	kvLdr := kv.NewLoader(
 		loader.NewFileLoaderAtRoot(fSys),
+		loader.NewFileLoaderAtRoot(fSysDisk),
 		valtest_test.MakeFakeValidator())
 	for _, tc := range testCases {
 		cm, err := NewFactory(kvLdr).MakeConfigMap(&tc.input)

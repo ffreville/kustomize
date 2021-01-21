@@ -63,8 +63,11 @@ func (b *Kustomizer) Run(path string) (resmap.ResMap, error) {
 		return nil, err
 	}
 	defer ldr.Cleanup()
+	fSysRoot := filesys.MakeFsOnDisk()
+	rootLdr := fLdr.NewFileLoaderAtRoot(fSysRoot)
 	kt := target.NewKustTarget(
 		ldr,
+		rootLdr,
 		b.depProvider.GetFieldValidator(),
 		resmapFactory,
 		pLdr.NewLoader(b.options.PluginConfig, resmapFactory),

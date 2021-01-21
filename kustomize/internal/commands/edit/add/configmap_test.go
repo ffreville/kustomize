@@ -15,10 +15,12 @@ import (
 
 func TestNewAddConfigMapIsNotNil(t *testing.T) {
 	fSys := filesys.MakeFsInMemory()
+	fSysDisk := filesys.MakeFsOnDisk()
 	if newCmdAddConfigMap(
 		fSys,
 		kv.NewLoader(
 			loader.NewFileLoaderAtCwd(fSys),
+			loader.NewFileLoaderAtRoot(fSysDisk),
 			valtest_test.MakeFakeValidator()),
 		nil) == nil {
 		t.Fatal("newCmdAddConfigMap shouldn't be nil")

@@ -24,6 +24,7 @@ import (
 // NewDefaultCommand returns the default (aka root) command for kustomize command.
 func NewDefaultCommand() *cobra.Command {
 	fSys := filesys.MakeFsOnDisk()
+	fSysDisk := filesys.MakeFsOnDisk()
 	stdOut := os.Stdout
 
 	c := &cobra.Command{
@@ -39,7 +40,7 @@ See https://sigs.k8s.io/kustomize
 		completion.NewCommand(),
 		build.NewCmdBuild(stdOut),
 		edit.NewCmdEdit(
-			fSys, pvd.GetFieldValidator(), pvd.GetKunstructuredFactory()),
+			fSys, fSysDisk, pvd.GetFieldValidator(), pvd.GetKunstructuredFactory()),
 		create.NewCmdCreate(fSys, pvd.GetKunstructuredFactory()),
 		version.NewCmdVersion(stdOut),
 		openapi.NewCmdOpenAPI(stdOut),
