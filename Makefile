@@ -26,8 +26,8 @@ verify-kustomize: \
 	lint-kustomize \
 	test-unit-kustomize-all \
 	test-examples-kustomize-against-HEAD \
-	test-examples-kustomize-against-3.9.2 \
-	test-examples-kustomize-against-3.8.9
+	test-examples-kustomize-against-3.9 \
+	test-examples-kustomize-against-3.8
 
 # The following target referenced by a file in
 # https://github.com/kubernetes/test-infra/tree/master/config/jobs/kubernetes-sigs/kustomize
@@ -39,8 +39,8 @@ prow-presubmit-check: \
 	test-unit-cmd-all \
 	test-go-mod \
 	test-examples-kustomize-against-HEAD \
-	test-examples-kustomize-against-3.9.2 \
-	test-examples-kustomize-against-3.8.9
+	test-examples-kustomize-against-3.9 \
+	test-examples-kustomize-against-3.8
 
 .PHONY: verify-kustomize-e2e
 verify-kustomize-e2e: test-examples-e2e-kustomize
@@ -80,6 +80,11 @@ $(MYGOBIN)/gorepomod:
 	go install .
 
 # Build from local source.
+$(MYGOBIN)/k8scopy:
+	cd cmd/k8scopy; \
+	go install .
+
+# Build from local source.
 $(MYGOBIN)/pluginator:
 	cd cmd/pluginator; \
 	go install .
@@ -98,13 +103,13 @@ $(MYGOBIN)/kustomize:
 install-tools: \
 	$(MYGOBIN)/goimports \
 	$(MYGOBIN)/golangci-lint-kustomize \
-	$(MYGOBIN)/gh \
 	$(MYGOBIN)/gorepomod \
+	$(MYGOBIN)/helm \
+	$(MYGOBIN)/k8scopy \
 	$(MYGOBIN)/mdrip \
 	$(MYGOBIN)/pluginator \
 	$(MYGOBIN)/prchecker \
-	$(MYGOBIN)/stringer \
-	$(MYGOBIN)/helm
+	$(MYGOBIN)/stringer
 
 ### Begin kustomize plugin rules.
 #
@@ -221,7 +226,7 @@ build-kustomize-api: $(builtinplugins)
 	cd api; go build ./...
 
 .PHONY: generate-kustomize-api
-generate-kustomize-api:
+generate-kustomize-api: $(MYGOBIN)/k8scopy
 	cd api; go generate ./...
 
 .PHONY: test-unit-kustomize-api
@@ -276,12 +281,12 @@ test-examples-kustomize-against-HEAD: $(MYGOBIN)/kustomize $(MYGOBIN)/mdrip
 	./hack/testExamplesAgainstKustomize.sh HEAD
 
 .PHONY:
-test-examples-kustomize-against-3.9.2: $(MYGOBIN)/mdrip
-	./hack/testExamplesAgainstKustomize.sh v3.9.2
+test-examples-kustomize-against-3.9: $(MYGOBIN)/mdrip
+	./hack/testExamplesAgainstKustomize.sh v3.9.3
 
 .PHONY:
-test-examples-kustomize-against-3.8.9: $(MYGOBIN)/mdrip
-	./hack/testExamplesAgainstKustomize.sh v3.8.9
+test-examples-kustomize-against-3.8: $(MYGOBIN)/mdrip
+	./hack/testExamplesAgainstKustomize.sh v3.8.10
 
 # linux only.
 # This is for testing an example plugin that

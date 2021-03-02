@@ -23,11 +23,8 @@ require (
 	k8s.io/api v0.17.0
 	k8s.io/apimachinery v0.17.0
 	k8s.io/client-go v0.17.0
-	k8s.io/kube-openapi v0.0.0-20191107075043-30be4d16710a
-	sigs.k8s.io/kustomize/kyaml v0.10.6
+	sigs.k8s.io/kustomize/kyaml v0.10.9
 	sigs.k8s.io/yaml v1.2.0
 	sylr.dev/yaml/age/v3 v3.0.0-20210124165718-e183355958de
 	sylr.dev/yaml/v3 v3.0.0-20210121142446-5fe289210a56
 )
-
-replace sigs.k8s.io/kustomize/kyaml => ../kyaml

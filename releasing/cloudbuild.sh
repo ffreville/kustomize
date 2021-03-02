@@ -58,8 +58,6 @@ echo "pwd = $PWD"
 # Sanity check
 echo "### ls -las . ################################"
 ls -las .
-# echo "### ls -C /usr/bin ################################"
-# ls -C /usr/bin
 echo "###################################"
 
 
@@ -97,7 +95,6 @@ builds:
 
   goarch:
   - amd64
-  - arm
   - arm64
 
 checksum:
@@ -117,8 +114,14 @@ EOF
 
 cat $configFile
 
-/bin/goreleaser release \
+date
+
+time /usr/local/bin/goreleaser release \
+  --timeout 10m \
+  --parallelism 4 \
   --config=$configFile \
   --release-notes=$changeLogFile \
   --rm-dist \
-  --skip-validate $remainingArgs 
+  --skip-validate $remainingArgs
+
+date
