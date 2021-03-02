@@ -87,6 +87,9 @@ func decryptInPlaceYAMLWithAge(value []byte, ids []age.Identity) ([]byte, error)
 func parseSSHIdentity(name string, pemBytes []byte) ([]age.Identity, error) {
 	id, err := agessh.ParseIdentity(pemBytes)
 	if sshErr, ok := err.(*ssh.PassphraseMissingError); ok {
+		if NotInteractive {
+			return nil, fmt.Errorf("key %q password protected but we are in non interactive mode", name)
+		}
 		pubKey := sshErr.PublicKey
 		if pubKey == nil {
 			pubKey, err = readPubFile(name)

@@ -24,6 +24,11 @@ import (
 	"sigs.k8s.io/kustomize/api/types"
 )
 
+var (
+	NotInteractive  = true
+	NoAgeDecryption = false
+)
+
 var utf8bom = []byte{0xEF, 0xBB, 0xBF}
 
 // loader reads and validates KV pairs.
@@ -77,6 +82,10 @@ func (kvl *loader) Load(
 
 func (kvl *loader) getAgeIdentities(sources []string) ([]age.Identity, error) {
 	var ids []age.Identity
+	if NoAgeDecryption {
+		return ids, nil
+	}
+
 	if len(sources) > 0 {
 		for _, path := range sources {
 			path, err := filepath.Abs(path)
@@ -96,6 +105,7 @@ func (kvl *loader) getAgeIdentities(sources []string) ([]age.Identity, error) {
 		}
 	}
 
+	var ageErrs []error
 	for _, path := range []string{
 		os.ExpandEnv("$HOME/.ssh/id_rsa"),
 		os.ExpandEnv("$HOME/.ssh/id_ed25519"),
@@ -107,11 +117,19 @@ func (kvl *loader) getAgeIdentities(sources []string) ([]age.Identity, error) {
 
 		sshids, err := parseSSHIdentity(path, content)
 		if err != nil {
+			ageErrs = append(ageErrs, err)
 			// If the key is explicitly requested, this error will be caught
 			// below, otherwise ignore it silently.
 			continue
 		}
 		ids = append(ids, sshids...)
+	}
+	if len(ids) == 0 && len(ageErrs) > 0 {
+		var strs []string
+		for _, e := range ageErrs {
+			strs = append(strs, e.Error())
+		}
+		return nil, fmt.Errorf("AGE errors: %s", strings.Join(strs, "; "))
 	}
 	return ids, nil
 }

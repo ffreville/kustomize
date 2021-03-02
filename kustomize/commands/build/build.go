@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/konfig"
 	"sigs.k8s.io/kustomize/api/krusty"
+	"sigs.k8s.io/kustomize/api/kv"
 	"sigs.k8s.io/kustomize/api/resmap"
 	"sigs.k8s.io/kustomize/api/resource"
 	"sigs.k8s.io/kustomize/api/types"
@@ -84,6 +85,12 @@ func NewCmdBuild(cmdName string, out io.Writer) *cobra.Command {
 	cmd.Flags().BoolVar(
 		&o.fnOptions.Network, "network", false,
 		"enable network access for functions that declare it")
+	cmd.Flags().BoolVar(
+		&kv.NotInteractive, "not-interactive", false,
+		"fail if interactions are needed")
+	cmd.Flags().BoolVar(
+		&kv.NoAgeDecryption, "no-age", false,
+		"do not perform AGE decryption")
 	cmd.Flags().StringVar(
 		&o.fnOptions.NetworkName, "network-name", "bridge",
 		"the docker network to run the container in")
