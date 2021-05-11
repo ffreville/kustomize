@@ -105,6 +105,7 @@ func NewCmdBuild(
 	AddFlagReorderOutput(cmd.Flags())
 	AddFlagEnableManagedbyLabel(cmd.Flags())
 	AddFlagEnableHelm(cmd.Flags())
+	AddFlagNoAGE(cmd.Flags())
 	return cmd
 }
 

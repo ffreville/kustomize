@@ -19,6 +19,10 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
+func init() {
+	kv.NoAgeDecryption = true
+}
+
 func TestFromFile(t *testing.T) {
 	resourceStr := `apiVersion: apps/v1
 kind: Deployment

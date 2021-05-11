@@ -16,6 +16,10 @@ import (
 	"sigs.k8s.io/kustomize/api/types"
 )
 
+func init() {
+	kv.NoAgeDecryption = true
+}
+
 func TestMakeSecret(t *testing.T) {
 	type expected struct {
 		out    string
