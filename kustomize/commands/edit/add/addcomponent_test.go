@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"sigs.k8s.io/kustomize/api/filesys"
-	testutils_test "sigs.k8s.io/kustomize/kustomize/v3/commands/internal/testutils"
+	testutils_test "sigs.k8s.io/kustomize/kustomize/v4/commands/internal/testutils"
 )
 
 const (
@@ -59,6 +59,28 @@ func TestAddComponentAlreadyThere(t *testing.T) {
 	err = cmd.RunE(cmd, args)
 	if err != nil {
 		t.Errorf("unexpected cmd error :%v", err)
+	}
+}
+
+func TestAddKustomizationFileAsComponent(t *testing.T) {
+	fSys := filesys.MakeFsInMemory()
+	fSys.WriteFile(componentFileName, []byte(componentFileContent))
+	testutils_test.WriteTestKustomization(fSys)
+
+	cmd := newCmdAddComponent(fSys)
+	args := []string{componentFileName}
+	err := cmd.RunE(cmd, args)
+	if err != nil {
+		t.Fatalf("unexpected cmd error: %v", err)
+	}
+
+	content, err := testutils_test.ReadTestKustomization(fSys)
+	if err != nil {
+		t.Errorf("unexpected read error: %v", err)
+	}
+
+	if strings.Contains(string(content), componentFileName) {
+		t.Errorf("%v shouldn't be in the list of the components", componentFileName)
 	}
 }
 

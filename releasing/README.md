@@ -47,7 +47,7 @@ function createBranch {
   branch=$1
   echo "Making branch $branch : \"$title\""
   git branch -D $branch  # delete if it exists
-  git co -b $branch
+  git checkout -b $branch
   git commit -a -m "$title"
   git push -f origin $branch
 }
@@ -61,7 +61,7 @@ function createPr {
 
 ```
 function refreshMaster {
-  git co master
+  git checkout master
   git fetch upstream
   git rebase upstream/master
 }
@@ -73,7 +73,7 @@ function testKustomizeRepo {
   local code=$?
   if [ $code -ne 0 ]; then
     echo "**** FAILURE ******************"
-    tail -n /tmp/k.txt
+    tail /tmp/k.txt
   else
     echo "LGTM"
   fi
@@ -357,6 +357,24 @@ Get back on master and do paranoia test:
 refreshMaster
 testKustomizeRepo
 ```
+
+### Publish Official Docker Image
+
+[k8s.io]: https://github.com/kubernetes/k8s.io
+[k8s-staging-kustomize]: https://pantheon.corp.google.com/gcr/images/k8s-staging-kustomize?project=k8s-staging-kustomize
+
+Fork and clone the [k8s.io] repo.
+
+Checkout a new branch.
+
+Edit file `k8s.gcr.io/images/k8s-staging-kustomize/images.yaml`
+to add the new kustomize version and the image sha256.
+
+Image sha256 can be found in the image registry in the GCP 
+project [k8s-staging-kustomize].
+
+Commit and push your changes. Then create a PR to [k8s.io] to promote
+new images. Assign the PR to @monopole and @Shell32-natsu.
 
 ### Finally
 

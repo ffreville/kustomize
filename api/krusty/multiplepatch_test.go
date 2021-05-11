@@ -506,7 +506,7 @@ metadata:
 }
 
 func makeCommonFilesForMultiplePatchTests(th kusttest_test.Harness) {
-	th.WriteK("/app/base", `
+	th.WriteK("base", `
 namePrefix: team-foo-
 commonLabels:
   app: mynginx
@@ -522,7 +522,7 @@ configMapGenerator:
   literals:
   - foo=bar
 `)
-	th.WriteF("/app/base/deployment.yaml", `
+	th.WriteF("base/deployment.yaml", `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -548,7 +548,7 @@ spec:
           name: configmap-in-base
         name: configmap-in-base
 `)
-	th.WriteF("/app/base/service.yaml", `
+	th.WriteF("base/service.yaml", `
 apiVersion: v1
 kind: Service
 metadata:
@@ -561,7 +561,7 @@ spec:
   selector:
     app: nginx
 `)
-	th.WriteK("/app/overlay/staging", `
+	th.WriteK("overlay/staging", `
 namePrefix: staging-
 commonLabels:
   env: staging
@@ -580,7 +580,7 @@ configMapGenerator:
 func TestMultiplePatchesNoConflict(t *testing.T) {
 	th := kusttest_test.MakeHarness(t)
 	makeCommonFilesForMultiplePatchTests(th)
-	th.WriteF("/app/overlay/staging/deployment-patch1.yaml", `
+	th.WriteF("overlay/staging/deployment-patch1.yaml", `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -602,7 +602,7 @@ spec:
           name: configmap-in-overlay
         name: configmap-in-overlay
 `)
-	th.WriteF("/app/overlay/staging/deployment-patch2.yaml", `
+	th.WriteF("overlay/staging/deployment-patch2.yaml", `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -616,7 +616,7 @@ spec:
         - name: ANOTHERENV
           value: FOO
 `)
-	m := th.Run("/app/overlay/staging", th.MakeDefaultOptions())
+	m := th.Run("overlay/staging", th.MakeDefaultOptions())
 	th.AssertActualEqualsExpected(m, `
 apiVersion: apps/v1
 kind: Deployment
@@ -718,7 +718,7 @@ metadata:
 func TestMultiplePatchesWithConflict(t *testing.T) {
 	th := kusttest_test.MakeHarness(t)
 	makeCommonFilesForMultiplePatchTests(th)
-	th.WriteF("/app/overlay/staging/deployment-patch1.yaml", `
+	th.WriteF("overlay/staging/deployment-patch1.yaml", `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -739,7 +739,7 @@ spec:
           name: configmap-in-overlay
         name: configmap-in-overlay
 `)
-	th.WriteF("/app/overlay/staging/deployment-patch2.yaml", `
+	th.WriteF("overlay/staging/deployment-patch2.yaml", `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -757,7 +757,7 @@ spec:
 	if opts.UseKyaml {
 		// kyaml doesn't try to detect conflicts in patches
 		// (so ENABLE_FEATURE_FOO FALSE wins).
-		m := th.Run("/app/overlay/staging", opts)
+		m := th.Run("overlay/staging", opts)
 		th.AssertActualEqualsExpected(m, `
 apiVersion: apps/v1
 kind: Deployment
@@ -853,7 +853,7 @@ metadata:
   name: staging-configmap-in-overlay-dc6fm46dhm
 `)
 	} else {
-		err := th.RunWithErr("/app/overlay/staging", opts)
+		err := th.RunWithErr("overlay/staging", opts)
 		if err == nil {
 			t.Fatalf("expected conflict")
 		}
@@ -910,9 +910,9 @@ spec:
 		t.Run(c.name, func(t *testing.T) {
 			th := kusttest_test.MakeHarness(t)
 			makeCommonFilesForMultiplePatchTests(th)
-			th.WriteF("/app/overlay/staging/deployment-patch1.yaml", c.patch1)
-			th.WriteF("/app/overlay/staging/deployment-patch2.yaml", c.patch2)
-			m := th.Run("/app/overlay/staging", th.MakeDefaultOptions())
+			th.WriteF("overlay/staging/deployment-patch1.yaml", c.patch1)
+			th.WriteF("overlay/staging/deployment-patch2.yaml", c.patch2)
+			m := th.Run("overlay/staging", th.MakeDefaultOptions())
 			th.AssertActualEqualsExpected(m, `apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1005,7 +1005,7 @@ metadata:
 func TestMultiplePatchesBothWithPatchDeleteDirective(t *testing.T) {
 	th := kusttest_test.MakeHarness(t)
 	makeCommonFilesForMultiplePatchTests(th)
-	th.WriteF("/app/overlay/staging/deployment-patch1.yaml", `
+	th.WriteF("overlay/staging/deployment-patch1.yaml", `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1017,7 +1017,7 @@ spec:
       - $patch: delete
         name: sidecar
 `)
-	th.WriteF("/app/overlay/staging/deployment-patch2.yaml", `
+	th.WriteF("overlay/staging/deployment-patch2.yaml", `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1033,7 +1033,7 @@ spec:
 	if opt.UseKyaml {
 		// kyaml doesn't fail on conflicts in patches; both containers
 		// (nginx and sidecar) are deleted per this patching instruction.
-		m := th.Run("/app/overlay/staging", opt)
+		m := th.Run("overlay/staging", opt)
 		th.AssertActualEqualsExpected(m, `
 apiVersion: apps/v1
 kind: Deployment
@@ -1114,7 +1114,7 @@ metadata:
 `)
 	} else {
 		// No kyaml means error on a patch conflict.
-		err := th.RunWithErr("/app/overlay/staging", opt)
+		err := th.RunWithErr("overlay/staging", opt)
 		if err == nil {
 			t.Fatalf("Expected error")
 		}
@@ -1147,7 +1147,7 @@ spec:
     spec:
       containers:
         - name: consul
-          image: "hashicorp/consul:1.9.1"
+          image: "dashicorp/consul:1.9.1"
           ports:
             - containerPort: 8500
               name: http
@@ -1188,7 +1188,7 @@ spec:
   template:
     spec:
       containers:
-      - image: hashicorp/consul:1.9.1
+      - image: dashicorp/consul:1.9.1
         name: consul
         ports:
         - containerPort: 8301
@@ -1211,5 +1211,54 @@ spec:
           name: serfwan
         - containerPort: 8300
           name: server
+`)
+}
+
+// test for #3616
+func TestSmpDeleteOnResource(t *testing.T) {
+	th := kusttest_test.MakeHarness(t)
+	th.WriteK(".", `
+resources:
+- workloads.yaml
+patches:
+- patch: |
+    apiVersion: monitoring.coreos.com/v1
+    kind: PrometheusRule
+    metadata:
+      name: rule1
+    $patch: delete
+`)
+	th.WriteF("workloads.yaml", `
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    role: alert-rules
+  name: rule1
+spec:
+  groups:
+  - name: rabbitmq.rules
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    role: alert-rules
+  name: rule2
+spec:
+  groups:
+  - name: rabbitmq.rules
+`)
+	m := th.Run(".", th.MakeDefaultOptions())
+	th.AssertActualEqualsExpected(m, `
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    role: alert-rules
+  name: rule2
+spec:
+  groups:
+  - name: rabbitmq.rules
 `)
 }

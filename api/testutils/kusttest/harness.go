@@ -12,9 +12,14 @@ import (
 	"sigs.k8s.io/kustomize/api/konfig"
 	"sigs.k8s.io/kustomize/api/konfig/builtinpluginconsts"
 	"sigs.k8s.io/kustomize/api/krusty"
+	"sigs.k8s.io/kustomize/api/kv"
 	"sigs.k8s.io/kustomize/api/resmap"
 	"sigs.k8s.io/kustomize/api/types"
 )
+
+func init() {
+	kv.NoAgeDecryption = true
+}
 
 // Harness manages a test environment.
 type Harness struct {
@@ -93,7 +98,7 @@ func (th Harness) MakeOptionsPluginsEnabled() krusty.Options {
 
 // Run, failing on error.
 func (th Harness) Run(path string, o krusty.Options) resmap.ResMap {
-	m, err := krusty.MakeKustomizer(th.fSys, &o).Run(path)
+	m, err := krusty.MakeKustomizer(&o).Run(th.fSys, path)
 	if err != nil {
 		th.t.Fatal(err)
 	}
@@ -102,7 +107,7 @@ func (th Harness) Run(path string, o krusty.Options) resmap.ResMap {
 
 // Run, failing if there is no error.
 func (th Harness) RunWithErr(path string, o krusty.Options) error {
-	_, err := krusty.MakeKustomizer(th.fSys, &o).Run(path)
+	_, err := krusty.MakeKustomizer(&o).Run(th.fSys, path)
 	if err == nil {
 		th.t.Fatalf("expected error")
 	}

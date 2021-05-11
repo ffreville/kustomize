@@ -38,6 +38,7 @@ func determineFieldOrder() []string {
 	}
 
 	ordered := []string{
+		"MetaData",
 		"Resources",
 		"Bases",
 		"NamePrefix",
@@ -115,6 +116,13 @@ func NewKustomizationFile(fSys filesys.FileSystem) (*kustomizationFile, error) {
 		return nil, err
 	}
 	return mf, nil
+}
+
+func (mf *kustomizationFile) GetPath() string {
+	if mf == nil {
+		return ""
+	}
+	return mf.path
 }
 
 func (mf *kustomizationFile) validate() error {

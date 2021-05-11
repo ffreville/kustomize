@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"sigs.k8s.io/kustomize/api/filesys"
-	testutils_test "sigs.k8s.io/kustomize/kustomize/v3/commands/internal/testutils"
+	testutils_test "sigs.k8s.io/kustomize/kustomize/v4/commands/internal/testutils"
 )
 
 const (
@@ -59,6 +59,28 @@ func TestAddResourceAlreadyThere(t *testing.T) {
 	err = cmd.RunE(cmd, args)
 	if err != nil {
 		t.Errorf("unexpected cmd error :%v", err)
+	}
+}
+
+func TestAddKustomizationFileAsResource(t *testing.T) {
+	fSys := filesys.MakeFsInMemory()
+	fSys.WriteFile(resourceFileName, []byte(resourceFileContent))
+	testutils_test.WriteTestKustomization(fSys)
+
+	cmd := newCmdAddResource(fSys)
+	args := []string{resourceFileName}
+	err := cmd.RunE(cmd, args)
+	if err != nil {
+		t.Fatalf("unexpected cmd error: %v", err)
+	}
+
+	content, err := testutils_test.ReadTestKustomization(fSys)
+	if err != nil {
+		t.Errorf("unexpected read error: %v", err)
+	}
+
+	if strings.Contains(string(content), resourceFileName) {
+		t.Errorf("%v shouldn't be in the list of the resources", resourceFileName)
 	}
 }
 

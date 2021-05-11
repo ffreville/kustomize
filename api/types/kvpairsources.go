@@ -29,6 +29,11 @@ type KvPairSources struct {
 	// (wikipedia.org/wiki/INI_file)
 	EnvSources []string `json:"envs,omitempty" yaml:"envs,omitempty"`
 
+	// Older, singular form of EnvSources.
+	// On edits (e.g. `kustomize fix`) this is merged into the plural form
+	// for consistency with LiteralSources and FileSources.
+	EnvSource string `json:"env,omitempty" yaml:"env,omitempty"`
+
 	// AgeIdentitySources is a list of file paths.
 	// The contents of each files should be an AGE identity file.
 	// AGE decryption will only apply to sources which have a '.age' suffix, e.g.:

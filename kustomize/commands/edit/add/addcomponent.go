@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/loader"
-	"sigs.k8s.io/kustomize/kustomize/v3/commands/internal/kustfile"
-	"sigs.k8s.io/kustomize/kustomize/v3/commands/internal/util"
+	"sigs.k8s.io/kustomize/kustomize/v4/commands/internal/kustfile"
+	"sigs.k8s.io/kustomize/kustomize/v4/commands/internal/util"
 )
 
 type addComponentOptions struct {
@@ -68,11 +68,13 @@ func (o *addComponentOptions) RunAddComponent(fSys filesys.FileSystem) error {
 	}
 
 	for _, component := range components {
-		if kustfile.StringInSlice(component, m.Components) {
-			log.Printf("component %s already in kustomization file", component)
-			continue
+		if mf.GetPath() != component {
+			if kustfile.StringInSlice(component, m.Components) {
+				log.Printf("component %s already in kustomization file", component)
+				continue
+			}
+			m.Components = append(m.Components, component)
 		}
-		m.Components = append(m.Components, component)
 	}
 
 	return mf.Write(m)

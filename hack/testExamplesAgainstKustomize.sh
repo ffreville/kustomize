@@ -20,7 +20,7 @@ rm -f $(go env GOPATH)/bin/kustomize
 if [ "$version" == "HEAD" ]; then
   (cd kustomize; go install .)
 else
-  GO111MODULE=on go get sigs.k8s.io/kustomize/kustomize/v3@${version}
+  GO111MODULE=on go get sigs.k8s.io/kustomize/kustomize/${version}
 fi
 
 # TODO: change the label?

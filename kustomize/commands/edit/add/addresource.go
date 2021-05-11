@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/loader"
-	"sigs.k8s.io/kustomize/kustomize/v3/commands/internal/kustfile"
-	"sigs.k8s.io/kustomize/kustomize/v3/commands/internal/util"
+	"sigs.k8s.io/kustomize/kustomize/v4/commands/internal/kustfile"
+	"sigs.k8s.io/kustomize/kustomize/v4/commands/internal/util"
 )
 
 type addResourceOptions struct {
@@ -68,11 +68,13 @@ func (o *addResourceOptions) RunAddResource(fSys filesys.FileSystem) error {
 	}
 
 	for _, resource := range resources {
-		if kustfile.StringInSlice(resource, m.Resources) {
-			log.Printf("resource %s already in kustomization file", resource)
-			continue
+		if mf.GetPath() != resource {
+			if kustfile.StringInSlice(resource, m.Resources) {
+				log.Printf("resource %s already in kustomization file", resource)
+				continue
+			}
+			m.Resources = append(m.Resources, resource)
 		}
-		m.Resources = append(m.Resources, resource)
 	}
 
 	return mf.Write(m)

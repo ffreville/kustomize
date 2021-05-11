@@ -6,6 +6,7 @@ package commands
 
 import (
 	"flag"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -14,12 +15,20 @@ import (
 	"sigs.k8s.io/kustomize/api/provider"
 	"sigs.k8s.io/kustomize/cmd/config/completion"
 	"sigs.k8s.io/kustomize/cmd/config/configcobra"
-	"sigs.k8s.io/kustomize/kustomize/v3/commands/build"
-	"sigs.k8s.io/kustomize/kustomize/v3/commands/create"
-	"sigs.k8s.io/kustomize/kustomize/v3/commands/edit"
-	"sigs.k8s.io/kustomize/kustomize/v3/commands/openapi"
-	"sigs.k8s.io/kustomize/kustomize/v3/commands/version"
+	"sigs.k8s.io/kustomize/kustomize/v4/commands/build"
+	"sigs.k8s.io/kustomize/kustomize/v4/commands/create"
+	"sigs.k8s.io/kustomize/kustomize/v4/commands/edit"
+	"sigs.k8s.io/kustomize/kustomize/v4/commands/openapi"
+	"sigs.k8s.io/kustomize/kustomize/v4/commands/version"
 )
+
+func makeBuildCommand(fSys filesys.FileSystem, w io.Writer) *cobra.Command {
+	cmd := build.NewCmdBuild(
+		fSys, build.MakeHelp(konfig.ProgramName, "build"), w)
+	// Add build flags that don't appear in kubectl.
+	build.AddFunctionAlphaEnablementFlags(cmd.Flags())
+	return cmd
+}
 
 // NewDefaultCommand returns the default (aka root) command for kustomize command.
 func NewDefaultCommand() *cobra.Command {
@@ -34,17 +43,18 @@ Manages declarative configuration of Kubernetes.
 See https://sigs.k8s.io/kustomize
 `,
 	}
+
 	pvd := provider.NewDefaultDepProvider()
 	c.AddCommand(
 		completion.NewCommand(),
-		build.NewCmdBuild("build", stdOut),
+		makeBuildCommand(fSys, stdOut),
 		edit.NewCmdEdit(
 			fSys, pvd.GetFieldValidator(), pvd.GetKunstructuredFactory()),
 		create.NewCmdCreate(fSys, pvd.GetKunstructuredFactory()),
 		version.NewCmdVersion(stdOut),
 		openapi.NewCmdOpenAPI(stdOut),
 	)
-	configcobra.AddCommands(c, "kustomize")
+	configcobra.AddCommands(c, konfig.ProgramName)
 
 	c.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 

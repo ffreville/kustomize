@@ -123,7 +123,7 @@ metadata:
 // to compare the result.
 func TestGeneratorBasics(t *testing.T) {
 	th := kusttest_test.MakeHarness(t)
-	th.WriteK("/app", `
+	th.WriteK(".", `
 namePrefix: blah-
 configMapGenerator:
 - name: bob
@@ -132,6 +132,7 @@ configMapGenerator:
   - vegetable=broccoli
   envs:
   - foo.env
+  env: bar.env
   files:
   - passphrase=phrase.dat
   - forces.txt
@@ -153,26 +154,31 @@ secretGenerator:
   files:
   - passphrase=phrase.dat
   - forces.txt
+  env: bar.env
 `)
-	th.WriteF("/app/foo.env", `
+	th.WriteF("foo.env", `
 MOUNTAIN=everest
 OCEAN=pacific
 `)
-	th.WriteF("/app/phrase.dat", `
+	th.WriteF("bar.env", `
+BIRD=falcon
+`)
+	th.WriteF("phrase.dat", `
 Life is short.
 But the years are long.
 Not while the evil days come not.
 `)
-	th.WriteF("/app/forces.txt", `
+	th.WriteF("forces.txt", `
 gravitational
 electromagnetic
 strong nuclear
 weak nuclear
 `)
 	opts := th.MakeDefaultOptions()
-	m := th.Run("/app", opts)
+	m := th.Run(".", opts)
 	expFmt := `apiVersion: v1
 data:
+  BIRD: falcon
   MOUNTAIN: everest
   OCEAN: pacific
   forces.txt: |2
@@ -190,11 +196,12 @@ data:
   vegetable: broccoli
 kind: ConfigMap
 metadata:
-  name: blah-bob-d87t8m8tgm
+  name: blah-bob-g9df72cd5b
 ---
 apiVersion: v1
 data:
-  druid_segmentCache_locations: '[{"path":  "var/druid/segment-cache",  "maxSize": 32000000000,  "freeSpacePercent": 1.0}]'
+  druid_segmentCache_locations: '[{"path":  "var/druid/segment-cache",  "maxSize":
+    32000000000,  "freeSpacePercent": 1.0}]'
   v2: '[{"path": "var/druid/segment-cache"}]'
 kind: ConfigMap
 metadata:
@@ -202,6 +209,7 @@ metadata:
 ---
 apiVersion: v1
 data:
+  BIRD: ZmFsY29u
   MOUNTAIN: ZXZlcmVzdA==
   OCEAN: cGFjaWZpYw==
   forces.txt: %s
@@ -219,21 +227,23 @@ type: Opaque
 		opts.IfApiMachineryElseKyaml(
 			fmt.Sprintf(
 				expFmt,
-				`CmdyYXZpdGF0aW9uYWwKZWxlY3Ryb21hZ25ldGljCnN0cm9uZyBudWNsZWFyCndlYWsgbnVjbGVhcgo=`,
-				`CkxpZmUgaXMgc2hvcnQuCkJ1dCB0aGUgeWVhcnMgYXJlIGxvbmcuCk5vdCB3aGlsZSB0aGUgZXZpbCBkYXlzIGNvbWUgbm90Lgo=`,
+				`CmdyYXZpdGF0aW9uYWwKZWxlY3Ryb21hZ25ldGljCnN0cm9uZyBudWNsZWFyCndlYWsgbn
+    VjbGVhcgo=`,
+				`CkxpZmUgaXMgc2hvcnQuCkJ1dCB0aGUgeWVhcnMgYXJlIGxvbmcuCk5vdCB3aGlsZSB0aG
+    UgZXZpbCBkYXlzIGNvbWUgbm90Lgo=`,
 				`ftht6hfgmb`),
 			fmt.Sprintf(
 				expFmt, `|
     CmdyYXZpdGF0aW9uYWwKZWxlY3Ryb21hZ25ldGljCnN0cm9uZyBudWNsZWFyCndlYWsgbn
     VjbGVhcgo=`, `|
     CkxpZmUgaXMgc2hvcnQuCkJ1dCB0aGUgeWVhcnMgYXJlIGxvbmcuCk5vdCB3aGlsZSB0aG
-    UgZXZpbCBkYXlzIGNvbWUgbm90Lgo=`, `9t25t44gg4`)))
+    UgZXZpbCBkYXlzIGNvbWUgbm90Lgo=`, `58g62h555c`)))
 }
 
 // TODO: These should be errors instead.
 func TestGeneratorRepeatsInKustomization(t *testing.T) {
 	th := kusttest_test.MakeHarness(t)
-	th.WriteK("/app", `
+	th.WriteK(".", `
 namePrefix: blah-
 configMapGenerator:
 - name: bob
@@ -249,13 +259,13 @@ configMapGenerator:
   files:
   - nobles=nobility.txt
 `)
-	th.WriteF("/app/forces.txt", `
+	th.WriteF("forces.txt", `
 gravitational
 electromagnetic
 strong nuclear
 weak nuclear
 `)
-	th.WriteF("/app/nobility.txt", `
+	th.WriteF("nobility.txt", `
 helium
 neon
 argon
@@ -263,7 +273,7 @@ krypton
 xenon
 radon
 `)
-	m := th.Run("/app", th.MakeDefaultOptions())
+	m := th.Run(".", th.MakeDefaultOptions())
 	th.AssertActualEqualsExpected(m, `
 apiVersion: v1
 data:
@@ -345,9 +355,58 @@ metadata:
 `)
 }
 
+var binaryHello = []byte{
+	0xff, // non-utf8
+	0x68, // h
+	0x65, // e
+	0x6c, // l
+	0x6c, // l
+	0x6f, // o
+}
+
+func manyHellos(count int) (result []byte) {
+	for i := 0; i < count; i++ {
+		result = append(result, binaryHello...)
+	}
+	return
+}
+
+func TestGeneratorOverlaysBinaryData(t *testing.T) {
+	th := kusttest_test.MakeHarness(t)
+	th.WriteF("base/data.bin", string(manyHellos(30)))
+	th.WriteK("base", `
+namePrefix: p1-
+configMapGenerator:
+- name: com1
+  behavior: create
+  files:
+  - data.bin
+`)
+	th.WriteK("overlay", `
+resources:
+- ../base
+configMapGenerator:
+- name: com1
+  behavior: merge
+`)
+	m := th.Run("overlay", th.MakeDefaultOptions())
+	th.AssertActualEqualsExpected(m, `
+apiVersion: v1
+binaryData:
+  data.bin: |
+    /2hlbGxv/2hlbGxv/2hlbGxv/2hlbGxv/2hlbGxv/2hlbGxv/2hlbGxv/2hlbGxv/2hlbG
+    xv/2hlbGxv/2hlbGxv/2hlbGxv/2hlbGxv/2hlbGxv/2hlbGxv/2hlbGxv/2hlbGxv/2hl
+    bGxv/2hlbGxv/2hlbGxv/2hlbGxv/2hlbGxv/2hlbGxv/2hlbGxv/2hlbGxv/2hlbGxv/2
+    hlbGxv/2hlbGxv/2hlbGxv/2hlbGxv
+kind: ConfigMap
+metadata:
+  name: p1-com1-96gmmt6gt5
+`)
+}
+
 func TestGeneratorOverlays(t *testing.T) {
 	th := kusttest_test.MakeHarness(t)
-	th.WriteK("/app/base1", `
+	th.WriteK("base1", `
 namePrefix: p1-
 configMapGenerator:
 - name: com1
@@ -355,7 +414,7 @@ configMapGenerator:
   literals:
   - from=base
 `)
-	th.WriteK("/app/base2", `
+	th.WriteK("base2", `
 namePrefix: p2-
 configMapGenerator:
 - name: com2
@@ -363,7 +422,7 @@ configMapGenerator:
   literals:
   - from=base
 `)
-	th.WriteK("/app/overlay/o1", `
+	th.WriteK("overlay/o1", `
 resources:
 - ../../base1
 configMapGenerator:
@@ -372,7 +431,7 @@ configMapGenerator:
   literals:
   - from=overlay
 `)
-	th.WriteK("/app/overlay/o2", `
+	th.WriteK("overlay/o2", `
 resources:
 - ../../base2
 configMapGenerator:
@@ -381,7 +440,7 @@ configMapGenerator:
   literals:
   - from=overlay
 `)
-	th.WriteK("/app/overlay", `
+	th.WriteK("overlay", `
 resources:
 - o1
 - o2
@@ -392,7 +451,7 @@ configMapGenerator:
   - foo=bar
   - baz=qux
 `)
-	m := th.Run("/app/overlay", th.MakeDefaultOptions())
+	m := th.Run("overlay", th.MakeDefaultOptions())
 	th.AssertActualEqualsExpected(m, `
 apiVersion: v1
 data:
@@ -415,24 +474,24 @@ metadata:
 func TestConfigMapGeneratorMergeNamePrefix(t *testing.T) {
 
 	th := kusttest_test.MakeHarness(t)
-	th.WriteK("/app/base", `
+	th.WriteK("base", `
 configMapGenerator:
 - name: cm
   behavior: create
   literals:
   - foo=bar
 `)
-	th.WriteK("/app/o1", `
+	th.WriteK("o1", `
 resources:
 - ../base
 namePrefix: o1-
 `)
-	th.WriteK("/app/o2", `
+	th.WriteK("o2", `
 resources:
 - ../base
 nameSuffix: -o2
 `)
-	th.WriteK("/app", `
+	th.WriteK(".", `
 resources:
 - o1
 - o2
@@ -446,7 +505,7 @@ configMapGenerator:
   literals:
   - big=crunch
 `)
-	m := th.Run("/app", th.MakeDefaultOptions())
+	m := th.Run(".", th.MakeDefaultOptions())
 	th.AssertActualEqualsExpected(m, `
 apiVersion: v1
 data:
@@ -468,11 +527,11 @@ metadata:
 
 func TestConfigMapGeneratorLiteralNewline(t *testing.T) {
 	th := kusttest_test.MakeHarness(t)
-	th.WriteK("/app", `
+	th.WriteK(".", `
 generators:
 - configmaps.yaml
 `)
-	th.WriteF("/app/configmaps.yaml", `
+	th.WriteF("configmaps.yaml", `
 apiVersion: builtin
 kind: ConfigMapGenerator
 metadata:
@@ -486,7 +545,7 @@ literals:
     behavior
 ---
 `)
-	m := th.Run("/app", th.MakeDefaultOptions())
+	m := th.Run(".", th.MakeDefaultOptions())
 	th.AssertActualEqualsExpected(
 		m, `
 apiVersion: v1

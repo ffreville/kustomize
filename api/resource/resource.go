@@ -70,6 +70,10 @@ func (r *Resource) GetDataMap() map[string]string {
 	return r.kunStr.GetDataMap()
 }
 
+func (r *Resource) GetBinaryDataMap() map[string]string {
+	return r.kunStr.GetBinaryDataMap()
+}
+
 func (r *Resource) GetGvk() resid.Gvk {
 	return r.kunStr.GetGvk()
 }
@@ -94,11 +98,12 @@ func (r *Resource) GetString(p string) (string, error) {
 	return r.kunStr.GetString(p)
 }
 
-func (r *Resource) IsEmpty() bool {
-	return len(r.kunStr.Map()) == 0
+func (r *Resource) IsEmpty() (bool, error) {
+	m, err := r.kunStr.Map()
+	return len(m) == 0, err
 }
 
-func (r *Resource) Map() map[string]interface{} {
+func (r *Resource) Map() (map[string]interface{}, error) {
 	return r.kunStr.Map()
 }
 
@@ -125,6 +130,10 @@ func (r *Resource) SetAnnotations(m map[string]string) {
 
 func (r *Resource) SetDataMap(m map[string]string) {
 	r.kunStr.SetDataMap(m)
+}
+
+func (r *Resource) SetBinaryDataMap(m map[string]string) {
+	r.kunStr.SetBinaryDataMap(m)
 }
 
 func (r *Resource) SetGvk(gvk resid.Gvk) {
@@ -194,6 +203,10 @@ func (r *Resource) copyOtherFields(other *Resource) {
 
 func (r *Resource) MergeDataMapFrom(o *Resource) {
 	r.SetDataMap(mergeStringMaps(o.GetDataMap(), r.GetDataMap()))
+}
+
+func (r *Resource) MergeBinaryDataMapFrom(o *Resource) {
+	r.SetBinaryDataMap(mergeStringMaps(o.GetBinaryDataMap(), r.GetBinaryDataMap()))
 }
 
 func (r *Resource) ErrIfNotEquals(o *Resource) error {
@@ -476,7 +489,11 @@ func (r *Resource) ApplySmPatch(patch *Resource) error {
 	if err != nil {
 		return err
 	}
-	if !r.IsEmpty() {
+	empty, err := r.IsEmpty()
+	if err != nil {
+		return err
+	}
+	if !empty {
 		r.SetName(n)
 		r.SetNamespace(ns)
 	}

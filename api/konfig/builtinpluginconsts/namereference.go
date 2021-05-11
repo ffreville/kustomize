@@ -50,6 +50,8 @@ nameReference:
   - path: spec/volumes/projected/sources/configMap/name
     version: v1
     kind: Pod
+  - path: template/spec/volumes/configMap/name
+    kind: PodTemplate
   - path: spec/template/spec/volumes/configMap/name
     kind: Deployment
   - path: spec/template/spec/containers/env/valueFrom/configMapKeyRef/name
@@ -128,6 +130,8 @@ nameReference:
     kind: Role
   - path: rules/resourceNames
     kind: ClusterRole
+  - path: metadata/annotations/nginx.ingress.kubernetes.io\/fastcgi-params-configmap
+    kind: Ingress
 
 - kind: Secret
   version: v1

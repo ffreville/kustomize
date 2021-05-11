@@ -13,13 +13,14 @@ import (
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/konfig"
 	"sigs.k8s.io/kustomize/api/types"
-	testutils_test "sigs.k8s.io/kustomize/kustomize/v3/commands/internal/testutils"
+	testutils_test "sigs.k8s.io/kustomize/kustomize/v4/commands/internal/testutils"
 )
 
 func TestFieldOrder(t *testing.T) {
 	expected := []string{
 		"APIVersion",
 		"Kind",
+		"MetaData",
 		"Resources",
 		"Bases",
 		"NamePrefix",
@@ -77,6 +78,18 @@ func TestWriteAndRead(t *testing.T) {
 	kustomization.FixKustomizationPostUnmarshalling()
 	if !reflect.DeepEqual(kustomization, content) {
 		t.Fatal("Read kustomization is different from written kustomization")
+	}
+}
+
+func TestGetPath(t *testing.T) {
+	fSys := filesys.MakeEmptyDirInMemory()
+	testutils_test.WriteTestKustomization(fSys)
+	mf, err := NewKustomizationFile(fSys)
+	if err != nil {
+		t.Fatalf("Unexpected Error: %v", err)
+	}
+	if mf.GetPath() != "kustomization.yaml" {
+		t.Fatalf("Path expected: kustomization.yaml. Actual path: %v", mf.GetPath())
 	}
 }
 

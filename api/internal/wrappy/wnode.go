@@ -170,6 +170,16 @@ func (wn *WNode) SetDataMap(m map[string]string) {
 	wn.node.SetDataMap(m)
 }
 
+// GetBinaryDataMap implements ifc.Kunstructured.
+func (wn *WNode) GetBinaryDataMap() map[string]string {
+	return wn.node.GetBinaryDataMap()
+}
+
+// SetBinaryDataMap implements ifc.Kunstructured.
+func (wn *WNode) SetBinaryDataMap(m map[string]string) {
+	wn.node.SetBinaryDataMap(m)
+}
+
 // GetKind implements ifc.Kunstructured.
 func (wn *WNode) GetKind() string {
 	return wn.demandMetaData("GetKind").Kind
@@ -210,7 +220,7 @@ func (wn *WNode) GetString(path string) (string, error) {
 }
 
 // Map implements ifc.Kunstructured.
-func (wn *WNode) Map() map[string]interface{} {
+func (wn *WNode) Map() (map[string]interface{}, error) {
 	return wn.node.Map()
 }
 
