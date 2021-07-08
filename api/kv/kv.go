@@ -142,7 +142,7 @@ func keyValuesFromLiteralSources(sources []string, ids []age.Identity) ([]types.
 			return nil, err
 		}
 		if strings.HasSuffix(k, ".age") {
-			k = strings.TrimRight(k, ".age")
+			k = strings.TrimSuffix(k, ".age")
 			content := []byte(v)
 			if strings.HasSuffix(k, ".yaml") || strings.HasSuffix(k, ".yml") {
 				content, err = decryptInPlaceYAMLWithAge(content, ids)
@@ -171,7 +171,7 @@ func (kvl *loader) keyValuesFromFileSources(sources []string, ids []age.Identity
 			return nil, err
 		}
 		if strings.HasSuffix(fPath, ".age") {
-			k = strings.TrimRight(k, ".age")
+			k = strings.TrimSuffix(k, ".age")
 
 			if (strings.HasSuffix(k, ".yaml") || strings.HasSuffix(k, ".yml")) &&
 				!bytes.HasPrefix(content, []byte(armor.Header)) {
