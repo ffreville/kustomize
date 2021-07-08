@@ -8,8 +8,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"sigs.k8s.io/kustomize/api/filesys"
+	"github.com/stretchr/testify/require"
 	testutils_test "sigs.k8s.io/kustomize/kustomize/v4/commands/internal/testutils"
+	"sigs.k8s.io/kustomize/kyaml/filesys"
 )
 
 const (
@@ -28,7 +29,8 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit,
 
 func TestAddPatchWithFilePath(t *testing.T) {
 	fSys := filesys.MakeEmptyDirInMemory()
-	fSys.WriteFile(patchFileName, []byte(patchFileContent))
+	err := fSys.WriteFile(patchFileName, []byte(patchFileContent))
+	require.NoError(t, err)
 	testutils_test.WriteTestKustomization(fSys)
 
 	cmd := newCmdAddPatch(fSys)
@@ -53,7 +55,8 @@ func TestAddPatchWithFilePath(t *testing.T) {
 
 func TestAddPatchWithPatchContent(t *testing.T) {
 	fSys := filesys.MakeEmptyDirInMemory()
-	fSys.WriteFile(patchFileName, []byte(patchFileContent))
+	err := fSys.WriteFile(patchFileName, []byte(patchFileContent))
+	require.NoError(t, err)
 	testutils_test.WriteTestKustomization(fSys)
 
 	cmd := newCmdAddPatch(fSys)
@@ -78,7 +81,8 @@ func TestAddPatchWithPatchContent(t *testing.T) {
 
 func TestAddPatchAlreadyThere(t *testing.T) {
 	fSys := filesys.MakeEmptyDirInMemory()
-	fSys.WriteFile(patchFileName, []byte(patchFileContent))
+	err := fSys.WriteFile(patchFileName, []byte(patchFileContent))
+	require.NoError(t, err)
 	testutils_test.WriteTestKustomization(fSys)
 
 	cmd := newCmdAddPatch(fSys)

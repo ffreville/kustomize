@@ -8,9 +8,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"sigs.k8s.io/kustomize/api/filesys"
+	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/kustomize/kustomize/v4/commands/internal/kustfile"
 	testutils_test "sigs.k8s.io/kustomize/kustomize/v4/commands/internal/testutils"
+	"sigs.k8s.io/kustomize/kyaml/filesys"
 )
 
 const (
@@ -21,7 +22,8 @@ func TestAddBaseHappyPath(t *testing.T) {
 	fSys := filesys.MakeFsInMemory()
 	bases := strings.Split(baseDirectoryPaths, ",")
 	for _, base := range bases {
-		fSys.Mkdir(base)
+		err := fSys.Mkdir(base)
+		require.NoError(t, err)
 	}
 	testutils_test.WriteTestKustomization(fSys)
 
@@ -41,7 +43,8 @@ func TestAddBaseAlreadyThere(t *testing.T) {
 	// Create fake directories
 	bases := strings.Split(baseDirectoryPaths, ",")
 	for _, base := range bases {
-		fSys.Mkdir(base)
+		err := fSys.Mkdir(base)
+		require.NoError(t, err)
 	}
 	testutils_test.WriteTestKustomization(fSys)
 

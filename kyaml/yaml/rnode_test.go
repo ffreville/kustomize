@@ -4,13 +4,15 @@
 package yaml
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
+	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/kustomize/kyaml/internal/forked/github.com/go-yaml/yaml"
 )
 
 func TestRNodeHasNilEntryInList(t *testing.T) {
@@ -179,6 +181,105 @@ func TestRNodeGetDataMap(t *testing.T) {
 			}
 			m := rn.GetDataMap()
 			if !assert.Equal(t, tc.expected, m) {
+				t.FailNow()
+			}
+		})
+	}
+}
+
+func TestRNodeGetValidatedDataMap(t *testing.T) {
+	emptyMap := map[string]string{}
+	testCases := map[string]struct {
+		theMap         map[string]interface{}
+		theAllowedKeys []string
+		expected       map[string]string
+		expectedError  error
+	}{
+		"nilResultEmptyKeys": {
+			theMap:         nil,
+			theAllowedKeys: []string{},
+			expected:       emptyMap,
+			expectedError:  nil,
+		},
+		"empty": {
+			theMap:         map[string]interface{}{},
+			theAllowedKeys: []string{},
+			expected:       emptyMap,
+			expectedError:  nil,
+		},
+		"expectedKeysMatch": {
+			theMap: map[string]interface{}{
+				"apiVersion": "v1",
+				"kind":       "ConfigMap",
+				"metadata": map[string]interface{}{
+					"name": "winnie",
+				},
+				"data": map[string]string{
+					"wine":   "cabernet",
+					"truck":  "ford",
+					"rocket": "falcon9",
+					"planet": "mars",
+					"city":   "brownsville",
+				},
+			},
+			theAllowedKeys: []string{
+				"wine",
+				"truck",
+				"rocket",
+				"planet",
+				"city",
+				"plane",
+				"country",
+			},
+			// order irrelevant, because assert.Equals is smart about maps.
+			expected: map[string]string{
+				"city":   "brownsville",
+				"wine":   "cabernet",
+				"planet": "mars",
+				"rocket": "falcon9",
+				"truck":  "ford",
+			},
+			expectedError: nil,
+		},
+		"unexpectedKeyInConfigMap": {
+			theMap: map[string]interface{}{
+				"apiVersion": "v1",
+				"kind":       "ConfigMap",
+				"metadata": map[string]interface{}{
+					"name": "winnie",
+				},
+				"data": map[string]string{
+					"wine":   "cabernet",
+					"truck":  "ford",
+					"rocket": "falcon9",
+				},
+			},
+			theAllowedKeys: []string{
+				"wine",
+				"truck",
+			},
+			// order irrelevant, because assert.Equals is smart about maps.
+			expected: map[string]string{
+				"wine":   "cabernet",
+				"rocket": "falcon9",
+				"truck":  "ford",
+			},
+			expectedError: fmt.Errorf("an unexpected key (rocket) was found"),
+		},
+	}
+
+	for n := range testCases {
+		tc := testCases[n]
+		t.Run(n, func(t *testing.T) {
+			rn, err := FromMap(tc.theMap)
+			if !assert.NoError(t, err) {
+				t.FailNow()
+			}
+			m, err := rn.GetValidatedDataMap(tc.theAllowedKeys)
+			if !assert.Equal(t, tc.expected, m) {
+				t.FailNow()
+			}
+			if !assert.Equal(t, tc.expectedError, err) {
 				t.FailNow()
 			}
 		})
@@ -1170,88 +1271,88 @@ const (
 `
 	bigMapYaml = `Kind: Service
 complextree:
-  - field1:
-      - boolfield: true
-        floatsubfield: 1.01
-        intsubfield: 1010
-        stringsubfield: idx1010
-      - boolfield: false
-        floatsubfield: 1.011
-        intsubfield: 1011
-        stringsubfield: idx1011
-    field2:
-      - boolfield: true
-        floatsubfield: 1.02
-        intsubfield: 1020
-        stringsubfield: idx1020
-      - boolfield: false
-        floatsubfield: 1.021
-        intsubfield: 1021
-        stringsubfield: idx1021
-  - field1:
-      - boolfield: true
-        floatsubfield: 1.11
-        intsubfield: 1110
-        stringsubfield: idx1110
-      - boolfield: false
-        floatsubfield: 1.111
-        intsubfield: 1111
-        stringsubfield: idx1111
-    field2:
-      - boolfield: true
-        floatsubfield: 1.112
-        intsubfield: 1120
-        stringsubfield: idx1120
-      - boolfield: false
-        floatsubfield: 1.1121
-        intsubfield: 1121
-        stringsubfield: idx1121
+- field1:
+  - boolfield: true
+    floatsubfield: 1.01
+    intsubfield: 1010
+    stringsubfield: idx1010
+  - boolfield: false
+    floatsubfield: 1.011
+    intsubfield: 1011
+    stringsubfield: idx1011
+  field2:
+  - boolfield: true
+    floatsubfield: 1.02
+    intsubfield: 1020
+    stringsubfield: idx1020
+  - boolfield: false
+    floatsubfield: 1.021
+    intsubfield: 1021
+    stringsubfield: idx1021
+- field1:
+  - boolfield: true
+    floatsubfield: 1.11
+    intsubfield: 1110
+    stringsubfield: idx1110
+  - boolfield: false
+    floatsubfield: 1.111
+    intsubfield: 1111
+    stringsubfield: idx1111
+  field2:
+  - boolfield: true
+    floatsubfield: 1.112
+    intsubfield: 1120
+    stringsubfield: idx1120
+  - boolfield: false
+    floatsubfield: 1.1121
+    intsubfield: 1121
+    stringsubfield: idx1121
 metadata:
-    labels:
-        app: application-name
-    name: service-name
+  labels:
+    app: application-name
+  name: service-name
 spec:
-    ports:
-        port: 80
+  ports:
+    port: 80
 that:
-  - idx0
-  - idx1
-  - idx2
-  - idx3
+- idx0
+- idx1
+- idx2
+- idx3
 these:
-  - field1:
-      - idx010
-      - idx011
-    field2:
-      - idx020
-      - idx021
-  - field1:
-      - idx110
-      - idx111
-    field2:
-      - idx120
-      - idx121
-  - field1:
-      - idx210
-      - idx211
-    field2:
-      - idx220
-      - idx221
+- field1:
+  - idx010
+  - idx011
+  field2:
+  - idx020
+  - idx021
+- field1:
+  - idx110
+  - idx111
+  field2:
+  - idx120
+  - idx121
+- field1:
+  - idx210
+  - idx211
+  field2:
+  - idx220
+  - idx221
 this:
-    is:
-        aBool: true
-        aFloat: 1.001
-        aNilValue: null
-        aNumber: 1000
-        anEmptyMap: {}
-        anEmptySlice: []
+  is:
+    aBool: true
+    aFloat: 1.001
+    aNilValue: null
+    aNumber: 1000
+    anEmptyMap: {}
+    anEmptySlice: []
 those:
-  - field1: idx0foo
-    field2: idx0bar
-  - field1: idx1foo
-    field2: idx1bar
-  - field1: idx2foo
-    field2: idx2bar
+- field1: idx0foo
+  field2: idx0bar
+- field1: idx1foo
+  field2: idx1bar
+- field1: idx2foo
+  field2: idx2bar
 `
 )
 
@@ -1671,7 +1772,8 @@ func TestSetName(t *testing.T) {
 	if err := rn.UnmarshalJSON([]byte(deploymentBiggerJson)); err != nil {
 		t.Fatalf("unexpected unmarshaljson err: %v", err)
 	}
-	rn.SetName("marge")
+	err := rn.SetName("marge")
+	require.NoError(t, err)
 	if expected, actual := "marge", rn.GetName(); expected != actual {
 		t.Fatalf("expected '%s', got '%s'", expected, actual)
 	}
@@ -1682,12 +1784,15 @@ func TestSetNamespace(t *testing.T) {
 	if err := rn.UnmarshalJSON([]byte(deploymentBiggerJson)); err != nil {
 		t.Fatalf("unexpected unmarshaljson err: %v", err)
 	}
-	rn.SetNamespace("flanders")
-	meta, _ := rn.GetMeta()
+	err := rn.SetNamespace("flanders")
+	require.NoError(t, err)
+	meta, err := rn.GetMeta()
+	require.NoError(t, err)
 	if expected, actual := "flanders", meta.Namespace; expected != actual {
 		t.Fatalf("expected '%s', got '%s'", expected, actual)
 	}
 }
+
 func TestSetLabels(t *testing.T) {
 	rn := NewRNode(nil)
 	if err := rn.UnmarshalJSON([]byte(deploymentBiggerJson)); err != nil {

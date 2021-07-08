@@ -7,8 +7,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"sigs.k8s.io/kustomize/api/filesys"
+	"github.com/stretchr/testify/require"
 	testutils_test "sigs.k8s.io/kustomize/kustomize/v4/commands/internal/testutils"
+	"sigs.k8s.io/kustomize/kyaml/filesys"
 )
 
 const (
@@ -21,8 +22,10 @@ sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
 
 func TestAddResourceHappyPath(t *testing.T) {
 	fSys := filesys.MakeEmptyDirInMemory()
-	fSys.WriteFile(resourceFileName, []byte(resourceFileContent))
-	fSys.WriteFile(resourceFileName+"another", []byte(resourceFileContent))
+	err := fSys.WriteFile(resourceFileName, []byte(resourceFileContent))
+	require.NoError(t, err)
+	err = fSys.WriteFile(resourceFileName+"another", []byte(resourceFileContent))
+	require.NoError(t, err)
 	testutils_test.WriteTestKustomization(fSys)
 
 	cmd := newCmdAddResource(fSys)
@@ -36,7 +39,8 @@ func TestAddResourceHappyPath(t *testing.T) {
 
 func TestAddResourceAlreadyThere(t *testing.T) {
 	fSys := filesys.MakeFsInMemory()
-	fSys.WriteFile(resourceFileName, []byte(resourceFileContent))
+	err := fSys.WriteFile(resourceFileName, []byte(resourceFileContent))
+	require.NoError(t, err)
 	testutils_test.WriteTestKustomization(fSys)
 
 	cmd := newCmdAddResource(fSys)
@@ -49,7 +53,8 @@ func TestAddResourceAlreadyThere(t *testing.T) {
 
 func TestAddKustomizationFileAsResource(t *testing.T) {
 	fSys := filesys.MakeFsInMemory()
-	fSys.WriteFile(resourceFileName, []byte(resourceFileContent))
+	err := fSys.WriteFile(resourceFileName, []byte(resourceFileContent))
+	require.NoError(t, err)
 	testutils_test.WriteTestKustomization(fSys)
 
 	cmd := newCmdAddResource(fSys)
