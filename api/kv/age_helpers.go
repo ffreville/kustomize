@@ -2,18 +2,26 @@ package kv
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"sync"
 
 	"filippo.io/age"
 	"filippo.io/age/agessh"
 	"filippo.io/age/armor"
 	"golang.org/x/crypto/ssh"
+
 	"golang.org/x/term"
 	yage "sylr.dev/yaml/age/v3"
 	"sylr.dev/yaml/v3"
+)
+
+var (
+	sshAgeIdentitiesCache      map[[sha256.Size]byte]age.Identity = make(map[[sha256.Size]byte]age.Identity)
+	sshAgeIdentitiesCacheMutex sync.RWMutex                       = sync.RWMutex{}
 )
 
 func decryptValueWithAge(value []byte, ids []age.Identity) ([]byte, error) {
@@ -85,6 +93,10 @@ func decryptInPlaceYAMLWithAge(value []byte, ids []age.Identity) ([]byte, error)
 // - https://github.com/FiloSottile/age/blob/31e0d226807f679cce89b67dfde6201b62582158/cmd/age/encrypted_keys.go
 
 func parseSSHIdentity(name string, pemBytes []byte) ([]age.Identity, error) {
+	if id := getSSHAgeIdentityFromCache(pemBytes); id != nil {
+		return []age.Identity{id}, nil
+	}
+
 	id, err := agessh.ParseIdentity(pemBytes)
 	if sshErr, ok := err.(*ssh.PassphraseMissingError); ok {
 		if NotInteractive {
@@ -105,14 +117,19 @@ func parseSSHIdentity(name string, pemBytes []byte) ([]age.Identity, error) {
 			}
 			return pass, nil
 		}
-		i, err := agessh.NewEncryptedSSHIdentity(pubKey, pemBytes, passphrasePrompt)
+		id, err = agessh.NewEncryptedSSHIdentity(pubKey, pemBytes, passphrasePrompt)
 		if err != nil {
 			return nil, err
 		}
-		return []age.Identity{i}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("malformed SSH identity in %q: %v", name, err)
+	}
+
+	// Only cache keys in interactive mode because we probably don't want to keep
+	// in memory unlocked ssh private keys.
+	if !NotInteractive {
+		addSSHAgeIdentityToCache(pemBytes, id)
 	}
 
 	return []age.Identity{id}, nil
@@ -156,4 +173,26 @@ func readPassphrase() ([]byte, error) {
 		return nil, err
 	}
 	return p, nil
+}
+
+func getSSHAgeIdentityFromCache(pemBytes []byte) age.Identity {
+	sha256 := sha256.Sum256(pemBytes)
+
+	sshAgeIdentitiesCacheMutex.RLock()
+	defer sshAgeIdentitiesCacheMutex.RUnlock()
+
+	if id, ok := sshAgeIdentitiesCache[sha256]; ok {
+		return id
+	}
+
+	return nil
+}
+
+func addSSHAgeIdentityToCache(pemBytes []byte, id age.Identity) {
+	sha256 := sha256.Sum256(pemBytes)
+
+	sshAgeIdentitiesCacheMutex.Lock()
+	defer sshAgeIdentitiesCacheMutex.Unlock()
+
+	sshAgeIdentitiesCache[sha256] = id
 }
