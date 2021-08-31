@@ -17,6 +17,11 @@ func writeTestSchema(th kusttest_test.Harness, filepath string) {
 	th.WriteF(filepath+"mycrd_schema.json", string(bytes))
 }
 
+func writeTestSchemaYaml(th kusttest_test.Harness, filepath string) {
+	bytes, _ := ioutil.ReadFile("testdata/customschema.yaml")
+	th.WriteF(filepath+"mycrd_schema.yaml", string(bytes))
+}
+
 func writeCustomResource(th kusttest_test.Harness, filepath string) {
 	th.WriteF(filepath, `
 apiVersion: example.com/v1alpha1
@@ -103,6 +108,21 @@ openapi:
 	th.AssertActualEqualsExpected(m, patchedCustomResource)
 }
 
+func TestCustomOpenApiFieldYaml(t *testing.T) {
+	th := kusttest_test.MakeHarness(t)
+	th.WriteK(".", `
+resources:
+- mycrd.yaml
+openapi:
+  path: mycrd_schema.yaml
+`+customSchemaPatch)
+	writeCustomResource(th, "mycrd.yaml")
+	writeTestSchemaYaml(th, "./")
+	openapi.ResetOpenAPI()
+	m := th.Run(".", th.MakeDefaultOptions())
+	th.AssertActualEqualsExpected(m, patchedCustomResource)
+}
+
 // Error if user tries to specify both builtin version
 // and custom schema
 func TestCustomOpenApiFieldBothPathAndVersion(t *testing.T) {
@@ -111,7 +131,7 @@ func TestCustomOpenApiFieldBothPathAndVersion(t *testing.T) {
 resources:
 - mycrd.yaml
 openapi:
-  version: v1.20.4
+  version: v1.21.2
   path: mycrd_schema.json
 `+customSchemaPatch)
 	writeCustomResource(th, "mycrd.yaml")
@@ -197,7 +217,7 @@ openapi:
 resources:
 - ../base
 openapi:
-  version: v1.20.4
+  version: v1.21.2
 `+customSchemaPatch)
 	writeCustomResource(th, "base/mycrd.yaml")
 	writeTestSchema(th, "base/")
@@ -215,7 +235,7 @@ spec:
       - image: nginx
         name: server
 `)
-	assert.Equal(t, "v1204", openapi.GetSchemaVersion())
+	assert.Equal(t, "v1212", openapi.GetSchemaVersion())
 }
 
 func TestCustomOpenAPIFieldFromComponent(t *testing.T) {

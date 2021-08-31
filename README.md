@@ -32,6 +32,7 @@ will be reflected in the Kubernetes release notes.
 | < v1.14 | n/a |
 | v1.14-v1.20 | v2.0.3 |
 | v1.21 | v4.0.5 |
+| v1.22 | v4.2.0 |
 
 [v2.0.3]: /../../tree/v2.0.3
 [#2506]: https://github.com/kubernetes-sigs/kustomize/issues/2506
@@ -151,7 +152,7 @@ is governed by the [Kubernetes Code of Conduct].
 [`make`]: https://www.gnu.org/software/make
 [`sed`]: https://www.gnu.org/software/sed
 [DAM]: https://kubernetes-sigs.github.io/kustomize/api-reference/glossary#declarative-application-management
-[KEP]: https://github.com/kubernetes/enhancements/blob/master/keps/sig-cli/0008-kustomize.md
+[KEP]: https://github.com/kubernetes/enhancements/blob/master/keps/sig-cli/2377-Kustomize/README.md
 [Kubernetes Code of Conduct]: code-of-conduct.md
 [applied]: https://kubernetes-sigs.github.io/kustomize/api-reference/glossary#apply
 [base]: https://kubernetes-sigs.github.io/kustomize/api-reference/glossary#base

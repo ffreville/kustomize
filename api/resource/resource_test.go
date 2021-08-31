@@ -28,8 +28,6 @@ var testConfigMap = factory.FromMap(
 		},
 	})
 
-const genArgOptions = "{nsfx:false,beh:unspecified}"
-
 //nolint:gosec
 const configMapAsString = `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"winnie","namespace":"hundred-acre-wood"}}`
 
@@ -66,17 +64,15 @@ func TestResourceString(t *testing.T) {
 	}{
 		{
 			in: testConfigMap,
-			s:  configMapAsString + genArgOptions,
+			s:  configMapAsString,
 		},
 		{
 			in: testDeployment,
-			s:  deploymentAsString + genArgOptions,
+			s:  deploymentAsString,
 		},
 	}
 	for _, test := range tests {
-		if test.in.String() != test.s {
-			t.Fatalf("Expected %s == %s", test.in.String(), test.s)
-		}
+		assert.Equal(t, test.in.String(), test.s)
 	}
 }
 
@@ -282,6 +278,266 @@ metadata:
 spec:
   numReplicas: 999
 `, string(bytes))
+}
+
+func TestApplySmPatchShouldOutputListItemsInCorrectOrder(t *testing.T) {
+	cases := []struct {
+		name           string
+		skip           bool
+		patch          string
+		expectedOutput string
+	}{
+		{
+			name: "Order should not change when patch has foo only",
+			patch: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test
+spec:
+  initContainers:
+    - name: foo
+`,
+			expectedOutput: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test
+spec:
+  initContainers:
+  - name: foo
+  - name: bar
+`,
+		},
+		{
+			name: "Order changes when patch has bar only",
+			patch: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test
+spec:
+  initContainers:
+    - name: bar
+`,
+			// This test records current behavior, but this behavior might be undesirable.
+			// If so, feel free to change the test to pass with some improved algorithm.
+			expectedOutput: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test
+spec:
+  initContainers:
+  - name: bar
+  - name: foo
+`,
+		},
+		{
+			name: "Order should not change and should include a new item at the beginning when patch has a new list item",
+			patch: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test
+spec:
+  initContainers:
+    - name: baz
+`,
+			expectedOutput: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test
+spec:
+  initContainers:
+  - name: baz
+  - name: foo
+  - name: bar
+`,
+		},
+		{
+			name: "Order should not change when patch has foo and bar in same order",
+			patch: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test
+spec:
+  initContainers:
+    - name: foo
+    - name: bar
+`,
+			expectedOutput: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test
+spec:
+  initContainers:
+  - name: foo
+  - name: bar
+`,
+		},
+		{
+			name: "Order should change when patch has foo and bar in different order",
+			patch: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test
+spec:
+  initContainers:
+    - name: bar
+    - name: foo
+`,
+			expectedOutput: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test
+spec:
+  initContainers:
+  - name: bar
+  - name: foo
+`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.skip {
+				t.Skip()
+			}
+
+			resource, err := factory.FromBytes([]byte(`
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test
+spec:
+  initContainers:
+    - name: foo
+    - name: bar
+`))
+			assert.NoError(t, err)
+
+			patch, err := factory.FromBytes([]byte(tc.patch))
+			assert.NoError(t, err)
+			assert.NoError(t, resource.ApplySmPatch(patch))
+			bytes, err := resource.AsYAML()
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedOutput, string(bytes))
+		})
+	}
+}
+
+func TestApplySmPatchShouldOutputPrimitiveListItemsInCorrectOrder(t *testing.T) {
+	cases := []struct {
+		name           string
+		skip           bool
+		patch          string
+		expectedOutput string
+	}{
+		{
+			name: "Order should not change when patch has foo only",
+			patch: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test
+  finalizers: ["foo"]
+`,
+			expectedOutput: `apiVersion: v1
+kind: Pod
+metadata:
+  finalizers:
+  - foo
+  - bar
+  name: test
+`,
+		},
+		{
+			name: "Order should not change when patch has bar only",
+			skip: true, // TODO: This test should pass but fails currently. Fix the problem and unskip this test
+			patch: `apiVersion: v1
+kind: Pod
+metadata:
+ name: test
+ finalizers: ["bar"]
+`,
+			expectedOutput: `apiVersion: v1
+kind: Pod
+metadata:
+ finalizers:
+ - foo
+ - bar
+ name: test
+`,
+		},
+		{
+			name: "Order should not change and should include a new item at the beginning when patch has a new list item",
+			patch: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test
+  finalizers: ["baz"]
+`,
+			expectedOutput: `apiVersion: v1
+kind: Pod
+metadata:
+  finalizers:
+  - baz
+  - foo
+  - bar
+  name: test
+`,
+		},
+		{
+			name: "Order should not change when patch has foo and bar in same order",
+			patch: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test
+  finalizers: ["foo", "bar"]
+`,
+			expectedOutput: `apiVersion: v1
+kind: Pod
+metadata:
+  finalizers:
+  - foo
+  - bar
+  name: test
+`,
+		},
+		{
+			name: "Order should change when patch has foo and bar in different order",
+			patch: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test
+  finalizers: ["bar", "foo"]
+`,
+			expectedOutput: `apiVersion: v1
+kind: Pod
+metadata:
+  finalizers:
+  - bar
+  - foo
+  name: test
+`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.skip {
+				t.Skip()
+			}
+
+			resource, err := factory.FromBytes([]byte(`
+kind: Pod
+metadata:
+  name: test
+  finalizers: ["foo", "bar"]
+`))
+			assert.NoError(t, err)
+
+			patch, err := factory.FromBytes([]byte(tc.patch))
+			assert.NoError(t, err)
+			assert.NoError(t, resource.ApplySmPatch(patch))
+			bytes, err := resource.AsYAML()
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedOutput, string(bytes))
+		})
+	}
 }
 
 func TestMergeDataMapFrom(t *testing.T) {
@@ -717,9 +973,9 @@ metadata:
 kind: Secret
 metadata:
   annotations:
-    config.kubernetes.io/previousKinds: Secret
-    config.kubernetes.io/previousNames: oldName
-    config.kubernetes.io/previousNamespaces: default
+    internal.config.kubernetes.io/previousKinds: Secret
+    internal.config.kubernetes.io/previousNames: oldName
+    internal.config.kubernetes.io/previousNamespaces: default
   name: newName
 `,
 		},
@@ -729,9 +985,9 @@ metadata:
 kind: Secret
 metadata:
   annotations:
-    config.kubernetes.io/previousKinds: Secret
-    config.kubernetes.io/previousNames: oldName
-    config.kubernetes.io/previousNamespaces: default
+    internal.config.kubernetes.io/previousKinds: Secret
+    internal.config.kubernetes.io/previousNames: oldName
+    internal.config.kubernetes.io/previousNamespaces: default
   name: oldName2
 `,
 			newName: "newName",
@@ -740,9 +996,9 @@ metadata:
 kind: Secret
 metadata:
   annotations:
-    config.kubernetes.io/previousKinds: Secret,Secret
-    config.kubernetes.io/previousNames: oldName,oldName2
-    config.kubernetes.io/previousNamespaces: default,default
+    internal.config.kubernetes.io/previousKinds: Secret,Secret
+    internal.config.kubernetes.io/previousNames: oldName,oldName2
+    internal.config.kubernetes.io/previousNamespaces: default,default
   name: newName
 `,
 		},
@@ -752,9 +1008,9 @@ metadata:
 kind: Secret
 metadata:
   annotations:
-    config.kubernetes.io/previousKinds: Secret
-    config.kubernetes.io/previousNames: oldName
-    config.kubernetes.io/previousNamespaces: default
+    internal.config.kubernetes.io/previousKinds: Secret
+    internal.config.kubernetes.io/previousNames: oldName
+    internal.config.kubernetes.io/previousNamespaces: default
   name: oldName2
   namespace: oldNamespace
 `,
@@ -764,9 +1020,9 @@ metadata:
 kind: Secret
 metadata:
   annotations:
-    config.kubernetes.io/previousKinds: Secret,Secret
-    config.kubernetes.io/previousNames: oldName,oldName2
-    config.kubernetes.io/previousNamespaces: default,oldNamespace
+    internal.config.kubernetes.io/previousKinds: Secret,Secret
+    internal.config.kubernetes.io/previousNames: oldName,oldName2
+    internal.config.kubernetes.io/previousNamespaces: default,oldNamespace
   name: newName
   namespace: newNamespace
 `,
@@ -814,9 +1070,9 @@ metadata:
 kind: Secret
 metadata:
   annotations:
-    config.kubernetes.io/previousKinds: Secret
-    config.kubernetes.io/previousNames: oldName
-    config.kubernetes.io/previousNamespaces: default
+    internal.config.kubernetes.io/previousKinds: Secret
+    internal.config.kubernetes.io/previousNames: oldName
+    internal.config.kubernetes.io/previousNamespaces: default
   name: newName
 `,
 			expected: []resid.ResId{
@@ -833,9 +1089,9 @@ metadata:
 kind: Secret
 metadata:
   annotations:
-    config.kubernetes.io/previousKinds: Secret,Secret
-    config.kubernetes.io/previousNames: oldName,oldName2
-    config.kubernetes.io/previousNamespaces: default,oldNamespace
+    internal.config.kubernetes.io/previousKinds: Secret,Secret
+    internal.config.kubernetes.io/previousNames: oldName,oldName2
+    internal.config.kubernetes.io/previousNamespaces: default,oldNamespace
   name: newName
   namespace: newNamespace
 `,
@@ -1132,4 +1388,42 @@ spec:
 	if expected, actual := "knd", gvk.Kind; expected != actual {
 		t.Fatalf("expected '%s', got '%s'", expected, actual)
 	}
+}
+
+func TestRefBy(t *testing.T) {
+	r, err := factory.FromBytes([]byte(`
+apiVersion: v1
+kind: Deployment
+metadata:
+  name: clown
+spec:
+  numReplicas: 1
+`))
+	assert.NoError(t, err)
+	r.AppendRefBy(resid.FromString("gr1_ver1_knd1|ns1|name1"))
+	assert.Equal(t, r.RNode.MustString(), `apiVersion: v1
+kind: Deployment
+metadata:
+  name: clown
+  annotations:
+    internal.config.kubernetes.io/refBy: gr1_ver1_knd1|ns1|name1
+spec:
+  numReplicas: 1
+`)
+	assert.Equal(t, r.GetRefBy(), []resid.ResId{resid.FromString("gr1_ver1_knd1|ns1|name1")})
+
+	r.AppendRefBy(resid.FromString("gr2_ver2_knd2|ns2|name2"))
+	assert.Equal(t, r.RNode.MustString(), `apiVersion: v1
+kind: Deployment
+metadata:
+  name: clown
+  annotations:
+    internal.config.kubernetes.io/refBy: gr1_ver1_knd1|ns1|name1,gr2_ver2_knd2|ns2|name2
+spec:
+  numReplicas: 1
+`)
+	assert.Equal(t, r.GetRefBy(), []resid.ResId{
+		resid.FromString("gr1_ver1_knd1|ns1|name1"),
+		resid.FromString("gr2_ver2_knd2|ns2|name2"),
+	})
 }

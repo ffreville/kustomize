@@ -64,18 +64,23 @@ func (rf *Factory) FromMapAndOption(
 		// TODO: return err instead of log.
 		log.Fatal(err)
 	}
-	return rf.makeOne(n, types.NewGenArgs(args))
+	return rf.makeOne(n, args)
 }
 
 // makeOne returns a new instance of Resource.
-func (rf *Factory) makeOne(rn *yaml.RNode, o *types.GenArgs) *Resource {
+func (rf *Factory) makeOne(rn *yaml.RNode, o *types.GeneratorArgs) *Resource {
 	if rn == nil {
 		log.Fatal("RNode must not be null")
 	}
-	if o == nil {
-		o = types.NewGenArgs(nil)
+	resource := &Resource{RNode: *rn}
+	if o != nil {
+		if o.Options == nil || !o.Options.DisableNameSuffixHash {
+			resource.EnableHashSuffix()
+		}
+		resource.SetBehavior(types.NewGenerationBehavior(o.Behavior))
 	}
-	return &Resource{RNode: *rn, options: o}
+
+	return resource
 }
 
 // SliceFromPatches returns a slice of resources given a patch path
@@ -265,7 +270,7 @@ func (rf *Factory) MakeConfigMap(kvLdr ifc.KvLoader, args *types.ConfigMapArgs) 
 	if err != nil {
 		return nil, err
 	}
-	return rf.makeOne(rn, types.NewGenArgs(&args.GeneratorArgs)), nil
+	return rf.makeOne(rn, &args.GeneratorArgs), nil
 }
 
 // MakeSecret makes an instance of Resource for Secret
@@ -274,5 +279,5 @@ func (rf *Factory) MakeSecret(kvLdr ifc.KvLoader, args *types.SecretArgs) (*Reso
 	if err != nil {
 		return nil, err
 	}
-	return rf.makeOne(rn, types.NewGenArgs(&args.GeneratorArgs)), nil
+	return rf.makeOne(rn, &args.GeneratorArgs), nil
 }

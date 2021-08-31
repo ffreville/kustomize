@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	. "sigs.k8s.io/kustomize/kyaml/kio"
+	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
+	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 func TestByteReader(t *testing.T) {
@@ -371,6 +373,62 @@ metadata:
 `,
 			},
 			instance: ByteReader{},
+		},
+
+		//
+		//
+		//
+		{
+			name: "white_space_after_document_separator_should_be_ignored",
+			input: `
+a: b
+---         
+c: d
+`,
+			expectedItems: []string{
+				`
+a: b
+`,
+				`
+c: d
+`,
+			},
+			instance: ByteReader{OmitReaderAnnotations: true},
+		},
+
+		//
+		//
+		//
+		{
+			name: "comment_after_document_separator_should_be_ignored",
+			input: `
+a: b
+--- #foo
+c: d
+`,
+			expectedItems: []string{
+				`
+a: b
+`,
+				`
+c: d
+`,
+			},
+			instance: ByteReader{OmitReaderAnnotations: true},
+		},
+
+		//
+		//
+		//
+		{
+			name: "anything_after_document_separator_other_than_white_space_or_comment_is_an_error",
+			input: `
+a: b
+--- foo
+c: d
+`,
+			err:      "invalid document separator: --- foo",
+			instance: ByteReader{OmitReaderAnnotations: true},
 		},
 	}
 
@@ -746,6 +804,181 @@ items:
 					t, strings.TrimSpace(tc.exp.sOut[i]),
 					strings.TrimSpace(json), n)
 			}
+		})
+	}
+}
+
+// This test shows the lower level (go-yaml) representation of a small doc
+// with an anchor. The anchor structure is there, in the sense that an
+// alias pointer is readily available when a node's kind is an AliasNode.
+// I.e. the anchor mapping name -> object was noted during unmarshalling.
+// However, at the time of writing github.com/go-yaml/yaml/encoder.go
+// doesn't appear to have an option to perform anchor replacements when
+// encoding.  It emits anchor definitions and references (aliases) intact.
+func TestByteReader_AnchorBehavior(t *testing.T) {
+	const input = `
+data:
+  color: &color-used blue
+  feeling: *color-used
+`
+	expected := strings.TrimSpace(`
+data:
+  color: &color-used blue
+  feeling: *color-used
+`)
+	var rNode *yaml.RNode
+	{
+		rNodes, err := FromBytes([]byte(input))
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(rNodes))
+		rNode = rNodes[0]
+	}
+	// Confirm internal representation.
+	{
+		yNode := rNode.YNode()
+
+		// The high level object is a map of "data" to some value.
+		assert.Equal(t, yaml.NodeTagMap, yNode.Tag)
+
+		yNodes := yNode.Content
+		assert.Equal(t, 2, len(yNodes))
+
+		// Confirm that the key is "data".
+		assert.Equal(t, yaml.NodeTagString, yNodes[0].Tag)
+		assert.Equal(t, "data", yNodes[0].Value)
+
+		assert.Equal(t, yaml.NodeTagMap, yNodes[1].Tag)
+
+		// The value of the "data" key.
+		yNodes = yNodes[1].Content
+		// Expect two name-value pairs.
+		assert.Equal(t, 4, len(yNodes))
+
+		assert.Equal(t, yaml.ScalarNode, yNodes[0].Kind)
+		assert.Equal(t, yaml.NodeTagString, yNodes[0].Tag)
+		assert.Equal(t, "color", yNodes[0].Value)
+		assert.Equal(t, "", yNodes[0].Anchor)
+		assert.Nil(t, yNodes[0].Alias)
+
+		assert.Equal(t, yaml.ScalarNode, yNodes[1].Kind)
+		assert.Equal(t, yaml.NodeTagString, yNodes[1].Tag)
+		assert.Equal(t, "blue", yNodes[1].Value)
+		assert.Equal(t, "color-used", yNodes[1].Anchor)
+		assert.Nil(t, yNodes[1].Alias)
+
+		assert.Equal(t, yaml.ScalarNode, yNodes[2].Kind)
+		assert.Equal(t, yaml.NodeTagString, yNodes[2].Tag)
+		assert.Equal(t, "feeling", yNodes[2].Value)
+		assert.Equal(t, "", yNodes[2].Anchor)
+		assert.Nil(t, yNodes[2].Alias)
+
+		assert.Equal(t, yaml.AliasNode, yNodes[3].Kind)
+		assert.Equal(t, "", yNodes[3].Tag)
+		assert.Equal(t, "color-used", yNodes[3].Value)
+		assert.Equal(t, "", yNodes[3].Anchor)
+		assert.NotNil(t, yNodes[3].Alias)
+	}
+
+	yaml, err := rNode.String()
+	assert.NoError(t, err)
+	assert.Equal(t, expected, strings.TrimSpace(yaml))
+}
+
+// TestByteReader_AddSeqIndentAnnotation tests if the internal.config.kubernetes.io/seqindent
+// annotation is added to resources appropriately
+func TestByteReader_AddSeqIndentAnnotation(t *testing.T) {
+	type testCase struct {
+		name                  string
+		err                   string
+		input                 string
+		expectedAnnoValue     string
+		OmitReaderAnnotations bool
+	}
+
+	testCases := []testCase{
+		{
+			name: "read with wide indentation",
+			input: `apiVersion: apps/v1
+kind: Deployment
+spec:
+  - foo
+  - bar
+  - baz
+`,
+			expectedAnnoValue: "wide",
+		},
+		{
+			name: "read with compact indentation",
+			input: `apiVersion: apps/v1
+kind: Deployment
+spec:
+- foo
+- bar
+- baz
+`,
+			expectedAnnoValue: "compact",
+		},
+		{
+			name: "read with mixed indentation, wide wins",
+			input: `apiVersion: apps/v1
+kind: Deployment
+spec:
+  - foo
+  - bar
+  - baz
+env:
+- foo
+- bar
+`,
+			expectedAnnoValue: "wide",
+		},
+		{
+			name: "read with mixed indentation, compact wins",
+			input: `apiVersion: apps/v1
+kind: Deployment
+spec:
+- foo
+- bar
+- baz
+env:
+  - foo
+  - bar
+`,
+			expectedAnnoValue: "compact",
+		},
+		{
+			name: "error if conflicting options",
+			input: `apiVersion: apps/v1
+kind: Deployment
+spec:
+- foo
+- bar
+- baz
+env:
+  - foo
+  - bar
+`,
+			OmitReaderAnnotations: true,
+			err:                   `"PreserveSeqIndent" option adds a reader annotation, please set "OmitReaderAnnotations" to false`,
+		},
+	}
+
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			rNodes, err := (&ByteReader{
+				OmitReaderAnnotations: tc.OmitReaderAnnotations,
+				PreserveSeqIndent:     true,
+				Reader:                bytes.NewBuffer([]byte(tc.input)),
+			}).Read()
+			if tc.err != "" {
+				assert.Error(t, err)
+				assert.Equal(t, tc.err, err.Error())
+				return
+			}
+			assert.NoError(t, err)
+			actual := rNodes[0].GetAnnotations()[kioutil.SeqIndentAnnotation]
+			assert.Equal(t, tc.expectedAnnoValue, actual)
 		})
 	}
 }

@@ -14,7 +14,7 @@ func TestBashedConfigMapPlugin(t *testing.T) {
 		PrepExecPlugin("someteam.example.com", "v1", "BashedConfigMap")
 	defer th.Reset()
 
-	m := th.LoadAndRunGenerator(`
+	m := th.LoadAndRunGeneratorWithBuildAnnotations(`
 apiVersion: someteam.example.com/v1
 kind: BashedConfigMap
 metadata:
@@ -28,6 +28,9 @@ data:
   username: alice
 kind: ConfigMap
 metadata:
+  annotations:
+    internal.config.kubernetes.io/generatorBehavior: unspecified
+    internal.config.kubernetes.io/needsHashSuffix: enabled
   name: example-configmap-test
 `)
 	if m.Resources()[0].NeedHashSuffix() != true {
