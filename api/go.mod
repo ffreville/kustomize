@@ -20,3 +20,5 @@ require (
 	sylr.dev/yaml/age/v3 v3.0.0-20210616065459-c2b548dbcf03
 	sylr.dev/yaml/v3 v3.0.0-20210127132132-941109e4f08c
 )
+
+replace sigs.k8s.io/kustomize/kyaml => ../kyaml
