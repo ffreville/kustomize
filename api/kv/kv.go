@@ -106,10 +106,24 @@ func (kvl *loader) getAgeIdentities(sources []string) ([]age.Identity, error) {
 	}
 
 	var ageErrs []error
-	for _, path := range []string{
-		os.ExpandEnv("$HOME/.ssh/id_rsa"),
-		os.ExpandEnv("$HOME/.ssh/id_ed25519"),
-	} {
+	var paths []string
+	var globs = []string{
+		path.Join(os.Getenv("HOME"), ".ssh", "id_rsa") + "*",
+		path.Join(os.Getenv("HOME"), ".ssh", "id_ed25519") + "*",
+	}
+
+	for _, glob := range globs {
+		files, err := filepath.Glob(glob)
+		if err == nil {
+			for _, file := range files {
+				if !strings.HasSuffix(file, ".pub") {
+					paths = append(paths, file)
+				}
+			}
+		}
+	}
+
+	for _, path := range paths {
 		content, err := ioutil.ReadFile(path)
 		if err != nil {
 			continue
@@ -124,6 +138,7 @@ func (kvl *loader) getAgeIdentities(sources []string) ([]age.Identity, error) {
 		}
 		ids = append(ids, sshids...)
 	}
+
 	if len(ids) == 0 && len(ageErrs) > 0 {
 		var strs []string
 		for _, e := range ageErrs {
@@ -131,6 +146,7 @@ func (kvl *loader) getAgeIdentities(sources []string) ([]age.Identity, error) {
 		}
 		return nil, fmt.Errorf("AGE errors: %s", strings.Join(strs, "; "))
 	}
+
 	return ids, nil
 }
 
