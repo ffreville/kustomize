@@ -39,6 +39,13 @@ a: b #forth
 metadata:
 `)
 
+var readFileE = []byte(`---
+a: b #first
+---
+- foo # second
+- bar
+`)
+
 var pkgFile = []byte(``)
 
 func TestLocalPackageReader_Read_empty(t *testing.T) {
@@ -71,12 +78,16 @@ metadata:
   annotations:
     config.kubernetes.io/index: '0'
     config.kubernetes.io/path: 'a_test.yaml'
+    internal.config.kubernetes.io/index: '0'
+    internal.config.kubernetes.io/path: 'a_test.yaml'
 `,
 			`c: d # second
 metadata:
   annotations:
     config.kubernetes.io/index: '1'
     config.kubernetes.io/path: 'a_test.yaml'
+    internal.config.kubernetes.io/index: '1'
+    internal.config.kubernetes.io/path: 'a_test.yaml'
 `,
 			`# second thing
 e: f
@@ -88,18 +99,24 @@ metadata:
   annotations:
     config.kubernetes.io/index: '0'
     config.kubernetes.io/path: 'b_test.yaml'
+    internal.config.kubernetes.io/index: '0'
+    internal.config.kubernetes.io/path: 'b_test.yaml'
 `,
 			`a: b #third
 metadata:
   annotations:
     config.kubernetes.io/index: '0'
     config.kubernetes.io/path: 'c_test.yaml'
+    internal.config.kubernetes.io/index: '0'
+    internal.config.kubernetes.io/path: 'c_test.yaml'
 `,
 			`a: b #forth
 metadata:
   annotations:
     config.kubernetes.io/index: '0'
     config.kubernetes.io/path: 'd_test.yaml'
+    internal.config.kubernetes.io/index: '0'
+    internal.config.kubernetes.io/path: 'd_test.yaml'
 `,
 		}
 		for i := range nodes {
@@ -133,12 +150,16 @@ metadata:
   annotations:
     config.kubernetes.io/index: '0'
     config.kubernetes.io/path: 'a_test.yaml'
+    internal.config.kubernetes.io/index: '0'
+    internal.config.kubernetes.io/path: 'a_test.yaml'
 `,
 			`c: d # second
 metadata:
   annotations:
     config.kubernetes.io/index: '1'
     config.kubernetes.io/path: 'a_test.yaml'
+    internal.config.kubernetes.io/index: '1'
+    internal.config.kubernetes.io/path: 'a_test.yaml'
 `,
 			`# second thing
 e: f
@@ -150,12 +171,16 @@ metadata:
   annotations:
     config.kubernetes.io/index: '0'
     config.kubernetes.io/path: 'b_test.yaml'
+    internal.config.kubernetes.io/index: '0'
+    internal.config.kubernetes.io/path: 'b_test.yaml'
 `,
 			`a: b #third
 metadata:
   annotations:
     config.kubernetes.io/index: '0'
     config.kubernetes.io/path: 'c_test.yaml'
+    internal.config.kubernetes.io/index: '0'
+    internal.config.kubernetes.io/path: 'c_test.yaml'
 `,
 		}
 		for i := range nodes {
@@ -191,9 +216,9 @@ func TestLocalPackageReader_Read_JSON(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, nodes, 2)
 		expected := []string{
-			`{"a": "b", metadata: {annotations: {config.kubernetes.io/index: '0', config.kubernetes.io/path: 'a_test.json'}}}
+			`{"a": "b", metadata: {annotations: {config.kubernetes.io/index: '0', config.kubernetes.io/path: 'a_test.json', internal.config.kubernetes.io/index: '0', internal.config.kubernetes.io/path: 'a_test.json'}}}
 `,
-			`{"e": "f", "g": {"h": ["i", "j"]}, metadata: {annotations: {config.kubernetes.io/index: '0', config.kubernetes.io/path: 'b_test.json'}}}
+			`{"e": "f", "g": {"h": ["i", "j"]}, metadata: {annotations: {config.kubernetes.io/index: '0', config.kubernetes.io/path: 'b_test.json', internal.config.kubernetes.io/index: '0', internal.config.kubernetes.io/path: 'b_test.json'}}}
 `,
 		}
 		for i := range nodes {
@@ -224,12 +249,16 @@ metadata:
   annotations:
     config.kubernetes.io/index: '0'
     config.kubernetes.io/path: 'a_test.yaml'
+    internal.config.kubernetes.io/index: '0'
+    internal.config.kubernetes.io/path: 'a_test.yaml'
 `,
 			`c: d # second
 metadata:
   annotations:
     config.kubernetes.io/index: '1'
     config.kubernetes.io/path: 'a_test.yaml'
+    internal.config.kubernetes.io/index: '1'
+    internal.config.kubernetes.io/path: 'a_test.yaml'
 `,
 		}
 		for i := range nodes {
@@ -297,6 +326,8 @@ metadata:
   annotations:
     config.kubernetes.io/index: '0'
     config.kubernetes.io/path: 'a_test.yaml'
+    internal.config.kubernetes.io/index: '0'
+    internal.config.kubernetes.io/path: 'a_test.yaml'
     internal.config.kubernetes.io/seqindent: 'compact'
 `,
 			`c: d # second
@@ -304,6 +335,8 @@ metadata:
   annotations:
     config.kubernetes.io/index: '1'
     config.kubernetes.io/path: 'a_test.yaml'
+    internal.config.kubernetes.io/index: '1'
+    internal.config.kubernetes.io/path: 'a_test.yaml'
     internal.config.kubernetes.io/seqindent: 'compact'
 `,
 			`# second thing
@@ -316,6 +349,8 @@ metadata:
   annotations:
     config.kubernetes.io/index: '0'
     config.kubernetes.io/path: 'b_test.yaml'
+    internal.config.kubernetes.io/index: '0'
+    internal.config.kubernetes.io/path: 'b_test.yaml'
     internal.config.kubernetes.io/seqindent: 'compact'
 `,
 		}
@@ -347,12 +382,16 @@ metadata:
   annotations:
     config.kubernetes.io/index: '0'
     config.kubernetes.io/path: 'a${SEP}b${SEP}a_test.yaml'
+    internal.config.kubernetes.io/index: '0'
+    internal.config.kubernetes.io/path: 'a${SEP}b${SEP}a_test.yaml'
 `,
 			`c: d # second
 metadata:
   annotations:
     config.kubernetes.io/index: '1'
     config.kubernetes.io/path: 'a${SEP}b${SEP}a_test.yaml'
+    internal.config.kubernetes.io/index: '1'
+    internal.config.kubernetes.io/path: 'a${SEP}b${SEP}a_test.yaml'
 `,
 			`# second thing
 e: f
@@ -364,6 +403,8 @@ metadata:
   annotations:
     config.kubernetes.io/index: '0'
     config.kubernetes.io/path: 'a${SEP}b${SEP}b_test.yaml'
+    internal.config.kubernetes.io/index: '0'
+    internal.config.kubernetes.io/path: 'a${SEP}b${SEP}b_test.yaml'
 `,
 		}
 		for i := range nodes {
@@ -397,12 +438,16 @@ metadata:
   annotations:
     config.kubernetes.io/index: '0'
     config.kubernetes.io/path: 'a${SEP}b${SEP}a_test.yaml'
+    internal.config.kubernetes.io/index: '0'
+    internal.config.kubernetes.io/path: 'a${SEP}b${SEP}a_test.yaml'
 `,
 			`c: d # second
 metadata:
   annotations:
     config.kubernetes.io/index: '1'
     config.kubernetes.io/path: 'a${SEP}b${SEP}a_test.yaml'
+    internal.config.kubernetes.io/index: '1'
+    internal.config.kubernetes.io/path: 'a${SEP}b${SEP}a_test.yaml'
 `,
 		}
 
@@ -438,12 +483,16 @@ metadata:
   annotations:
     config.kubernetes.io/index: '0'
     config.kubernetes.io/path: 'a${SEP}b${SEP}a_test.yaml'
+    internal.config.kubernetes.io/index: '0'
+    internal.config.kubernetes.io/path: 'a${SEP}b${SEP}a_test.yaml'
 `,
 			`c: d # second
 metadata:
   annotations:
     config.kubernetes.io/index: '1'
     config.kubernetes.io/path: 'a${SEP}b${SEP}a_test.yaml'
+    internal.config.kubernetes.io/index: '1'
+    internal.config.kubernetes.io/path: 'a${SEP}b${SEP}a_test.yaml'
 `,
 		}
 
@@ -480,12 +529,16 @@ metadata:
   annotations:
     config.kubernetes.io/index: '0'
     config.kubernetes.io/path: 'a${SEP}b${SEP}a_test.yaml'
+    internal.config.kubernetes.io/index: '0'
+    internal.config.kubernetes.io/path: 'a${SEP}b${SEP}a_test.yaml'
 `,
 			`c: d # second
 metadata:
   annotations:
     config.kubernetes.io/index: '1'
     config.kubernetes.io/path: 'a${SEP}b${SEP}a_test.yaml'
+    internal.config.kubernetes.io/index: '1'
+    internal.config.kubernetes.io/path: 'a${SEP}b${SEP}a_test.yaml'
 `,
 			`# second thing
 e: f
@@ -497,6 +550,8 @@ metadata:
   annotations:
     config.kubernetes.io/index: '0'
     config.kubernetes.io/path: 'a${SEP}c${SEP}c_test.yaml'
+    internal.config.kubernetes.io/index: '0'
+    internal.config.kubernetes.io/path: 'a${SEP}c${SEP}c_test.yaml'
 `,
 		}
 
@@ -553,5 +608,47 @@ func testOnDiskAndOnMem(t *testing.T, files []mockFile, f func(t *testing.T, pat
 		}
 
 		f(t, "/", fs)
+	})
+}
+
+func TestLocalPackageReader_ReadBareSeqNodes(t *testing.T) {
+	testOnDiskAndOnMem(t, []mockFile{
+		{path: "a/b"},
+		{path: "a/c"},
+		{path: "e_test.yaml", content: readFileE},
+	}, func(t *testing.T, path string, mockFS filesys.FileSystem) {
+		rfr := LocalPackageReader{
+			PackagePath:     path,
+			FileSystem:      filesys.FileSystemOrOnDisk{FileSystem: mockFS},
+			WrapBareSeqNode: true,
+		}
+		nodes, err := rfr.Read()
+		require.NoError(t, err)
+		require.Len(t, nodes, 2)
+		expected := []string{
+			`a: b #first
+metadata:
+  annotations:
+    config.kubernetes.io/index: '0'
+    config.kubernetes.io/path: 'e_test.yaml'
+    internal.config.kubernetes.io/index: '0'
+    internal.config.kubernetes.io/path: 'e_test.yaml'
+`,
+			`bareSeqNodeWrappingKey:
+- foo # second
+- bar
+metadata:
+  annotations:
+    config.kubernetes.io/index: '1'
+    config.kubernetes.io/path: 'e_test.yaml'
+    internal.config.kubernetes.io/index: '1'
+    internal.config.kubernetes.io/path: 'e_test.yaml'
+`,
+		}
+		for i := range nodes {
+			val, err := nodes[i].String()
+			require.NoError(t, err)
+			require.Equal(t, expected[i], val)
+		}
 	})
 }

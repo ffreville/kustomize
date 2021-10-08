@@ -5,7 +5,7 @@ package resource_test
 
 import (
 	"fmt"
-	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,9 +13,10 @@ import (
 	. "sigs.k8s.io/kustomize/api/resource"
 	"sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
+	"sigs.k8s.io/kustomize/kyaml/kio"
 )
 
-func TestSliceFromBytes(t *testing.T) {
+func TestRNodesFromBytes(t *testing.T) {
 	type testCase struct {
 		input    string
 		expected []string
@@ -399,60 +400,11 @@ binaryData:
 	}
 }
 
-func TestSliceFromBytesMore(t *testing.T) {
-	testConfigMap :=
-		map[string]interface{}{
-			"apiVersion": "v1",
-			"kind":       "ConfigMap",
-			"metadata": map[string]interface{}{
-				"name": "winnie",
-			},
-		}
-	testDeploymentSpec := map[string]interface{}{
-		"template": map[string]interface{}{
-			"spec": map[string]interface{}{
-				"hostAliases": []interface{}{
-					map[string]interface{}{
-						"hostnames": []interface{}{
-							"a.example.com",
-						},
-						"ip": "8.8.8.8",
-					},
-				},
-			},
-		},
-	}
-	testDeploymentA := map[string]interface{}{
-		"apiVersion": "apps/v1",
-		"kind":       "Deployment",
-		"metadata": map[string]interface{}{
-			"name": "deployment-a",
-		},
-		"spec": testDeploymentSpec,
-	}
-	testDeploymentB := map[string]interface{}{
-		"apiVersion": "apps/v1",
-		"kind":       "Deployment",
-		"metadata": map[string]interface{}{
-			"name": "deployment-b",
-		},
-		"spec": testDeploymentSpec,
-	}
-	testDeploymentList :=
-		map[string]interface{}{
-			"apiVersion": "v1",
-			"kind":       "DeploymentList",
-			"items": []interface{}{
-				testDeploymentA,
-				testDeploymentB,
-			},
-		}
-
+func TestMoreRNodesFromBytes(t *testing.T) {
 	type expected struct {
-		out   []map[string]interface{}
+		out   []string
 		isErr bool
 	}
-
 	testCases := map[string]struct {
 		input []byte
 		exp   expected
@@ -465,16 +417,16 @@ func TestSliceFromBytesMore(t *testing.T) {
 		},
 		"noBytes": {
 			input: []byte{},
-			exp: expected{
-				out: []map[string]interface{}{},
-			},
+			exp:   expected{},
 		},
 		"goodJson": {
 			input: []byte(`
 {"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"winnie"}}
 `),
 			exp: expected{
-				out: []map[string]interface{}{testConfigMap},
+				out: []string{
+					`{"apiVersion": "v1", "kind": "ConfigMap", "metadata": {"name": "winnie"}}`,
+				},
 			},
 		},
 		"goodYaml1": {
@@ -485,7 +437,12 @@ metadata:
   name: winnie
 `),
 			exp: expected{
-				out: []map[string]interface{}{testConfigMap},
+				out: []string{`
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: winnie
+`},
 			},
 		},
 		"goodYaml2": {
@@ -501,26 +458,17 @@ metadata:
   name: winnie
 `),
 			exp: expected{
-				out: []map[string]interface{}{testConfigMap, testConfigMap},
-			},
-		},
-		"localConfigYaml": {
-			input: []byte(`
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: winnie-skip
-  annotations:
-    # this annotation causes the Resource to be ignored by kustomize
-    config.kubernetes.io/local-config: ""
----
+				out: []string{`
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: winnie
-`),
-			exp: expected{
-				out: []map[string]interface{}{testConfigMap},
+`, `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: winnie
+`},
 			},
 		},
 		"garbageInOneOfTwoObjects": {
@@ -545,7 +493,7 @@ WOOOOOOOOOOOOOOOOOOOOOOOOT:  woot
 
 `),
 			exp: expected{
-				out: []map[string]interface{}{},
+				out: []string{},
 			},
 		},
 		"Missing .metadata.name in object": {
@@ -591,9 +539,18 @@ items:
     name: winnie
 `),
 			exp: expected{
-				out: []map[string]interface{}{
-					testConfigMap,
-					testConfigMap},
+				out: []string{`
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: winnie
+`, `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: winnie
+`,
+				},
 			},
 		},
 		"ConfigMapList": {
@@ -611,9 +568,9 @@ items:
     name: winnie
 `),
 			exp: expected{
-				out: []map[string]interface{}{
-					testConfigMap,
-					testConfigMap,
+				out: []string{
+					`{"apiVersion": "v1", "kind": "ConfigMap", "metadata": {"name": "winnie"}}`,
+					`{"apiVersion": "v1", "kind": "ConfigMap", "metadata": {"name": "winnie"}}`,
 				},
 			},
 		},
@@ -626,7 +583,7 @@ items:
   kind: Deployment
   metadata:
     name: deployment-a
-  spec: &hostAliases
+  spec: &foo
     template:
       spec:
         hostAliases:
@@ -638,23 +595,39 @@ items:
   metadata:
     name: deployment-b
   spec:
-    <<: *hostAliases
+    *foo
 `),
 			exp: expected{
-				// TODO(3271): This should work.
-				// https://github.com/kubernetes-sigs/kustomize/issues/3271
-				// json.Marshal(obj) fails on the 2nd list item.
-				// The value of the 1st list item's first spec field is
-				//  map[string]interface{}
-				// The value of the 2nd list item's first spec field is
-				//  map[interface{}]interface{}
-				// which causes a encoding/json.UnsupportedTypeError.
-				isErr: true,
-				out:   []map[string]interface{}{testDeploymentList},
+				out: []string{
+					`{"apiVersion": "apps/v1", "kind": "Deployment", "metadata": {"name": "deployment-a"}, ` +
+						`"spec": {"template": {"spec": {"hostAliases": [{"hostnames": ["a.example.com"], "ip": "8.8.8.8"}]}}}}`,
+					`{"apiVersion": "apps/v1", "kind": "Deployment", "metadata": {"name": "deployment-b"}, ` +
+						`"spec": {"template": {"spec": {"hostAliases": [{"hostnames": ["a.example.com"], "ip": "8.8.8.8"}]}}}}`},
+			},
+		},
+		"simpleAnchor": {
+			input: []byte(`
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wildcard
+data:
+  color: &color-used blue
+  feeling: *color-used
+`),
+			exp: expected{
+				out: []string{`
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wildcard
+data:
+  color: blue
+  feeling: blue
+`},
 			},
 		},
 	}
-
 	for n := range testCases {
 		tc := testCases[n]
 		t.Run(n, func(t *testing.T) {
@@ -666,15 +639,100 @@ items:
 			assert.False(t, tc.exp.isErr)
 			assert.Equal(t, len(tc.exp.out), len(rs))
 			for i := range rs {
-				rsMap, err := rs[i].Map()
+				actual, err := rs[i].String()
 				assert.NoError(t, err)
 				assert.Equal(
-					t, fmt.Sprintf("%v", tc.exp.out[i]), fmt.Sprintf("%v", rsMap))
-				m, _ := rs[i].Map()
-				if !reflect.DeepEqual(tc.exp.out[i], m) {
-					t.Fatalf("%s:\nexpected: %v\n  actual: %v",
-						n, tc.exp.out[i], m)
-				}
+					t, strings.TrimSpace(tc.exp.out[i]), strings.TrimSpace(actual))
+			}
+		})
+	}
+}
+
+func TestDropLocalNodes(t *testing.T) {
+	testCases := map[string]struct {
+		input    []byte
+		expected []byte
+	}{
+		"localConfigUnset": {
+			input: []byte(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: winnie
+`),
+			expected: []byte(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: winnie
+`),
+		},
+		"localConfigSet": {
+			input: []byte(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: winnie-skip
+  annotations:
+     # this annotation causes the Resource to be ignored by kustomize
+     config.kubernetes.io/local-config: ""
+`),
+			expected: nil,
+		},
+		"localConfigSetToTrue": {
+			input: []byte(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: winnie-skip
+  annotations:
+	 config.kubernetes.io/local-config: "true"
+		`),
+			expected: nil,
+		},
+		"localConfigSetToFalse": {
+			input: []byte(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: winnie
+  annotations:
+    config.kubernetes.io/local-config: "false"
+`),
+			expected: []byte(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  annotations:
+    config.kubernetes.io/local-config: "false"
+  name: winnie
+`),
+		},
+		"localConfigMultiInput": {
+			input: []byte(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: winnie
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: winnie-skip
+  annotations:
+    config.kubernetes.io/local-config: "true"
+`),
+			expected: []byte(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: winnie
+`),
+		},
+	}
+	for n := range testCases {
+		tc := testCases[n]
+		t.Run(n, func(t *testing.T) {
+			nin, _ := kio.FromBytes(tc.input)
+			res, err := factory.DropLocalNodes(nin)
+			assert.NoError(t, err)
+			if tc.expected == nil {
+				assert.Equal(t, 0, len(res))
+			} else {
+				actual, _ := res[0].AsYAML()
+				assert.Equal(t, tc.expected, actual)
 			}
 		})
 	}
