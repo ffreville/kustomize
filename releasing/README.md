@@ -11,6 +11,7 @@
 [`cloudbuild.yaml`]: cloudbuild.yaml
 [kustomize repo release page]: https://github.com/kubernetes-sigs/kustomize/releases
 [OpenAPI Readme]: ../kyaml/openapi/README.md
+[project cloud build history page]: https://console.cloud.google.com/cloud-build/builds?project=k8s-staging-kustomize
 
 This document describes how to perform a [semver release]
 of one of the several [Go modules] in this repository.
@@ -86,7 +87,7 @@ echo $GITHUB_TOKEN | gh auth login --scopes repo --with-token
 #### Establish clean state
 
 ```
-refreshMaster
+refreshMaster &&
 testKustomizeRepo
 ```
 
@@ -108,6 +109,9 @@ Note the version:
 versionKyaml=v0.10.20   # EDIT THIS!
 ```
 
+See the process of the cloud build job
+on the [project cloud build history page].
+
 Undraft the release on the [kustomize repo release page]:
 * Make sure the version number is what you expect.
 * Remove references to commits that aren't relevant to end users of this module (e.g. test commits, refactors).
@@ -119,16 +123,18 @@ Undraft the release on the [kustomize repo release page]:
 #### Pin to the most recent kyaml
 
 ```
-gorepomod pin kyaml --doIt
-go mod edit -require=sigs.k8s.io/kustomize/kyaml@$versionKyaml plugin/builtin/prefixsuffixtransformer/go.mod
-go mod edit -require=sigs.k8s.io/kustomize/kyaml@$versionKyaml plugin/builtin/replicacounttransformer/go.mod
-
+gorepomod pin kyaml --doIt &&
+go mod edit -require=sigs.k8s.io/kustomize/kyaml@$versionKyaml plugin/builtin/prefixsuffixtransformer/go.mod &&
+go mod edit -require=sigs.k8s.io/kustomize/kyaml@$versionKyaml plugin/builtin/replicacounttransformer/go.mod &&
+go mod edit -require=sigs.k8s.io/kustomize/kyaml@$versionKyaml plugin/builtin/patchtransformer/go.mod &&
+go mod edit -require=sigs.k8s.io/kustomize/kyaml@$versionKyaml plugin/builtin/patchjson6902transformer/go.mod
 ```
 
 Create the PR:
 ```
-title="Pin to kyaml $versionKyaml"
-createBranch pinToKyaml $title
+createBranch pinToKyaml "Pin to kyaml $versionKyaml"
+```
+```
 createPr
 ```
 
@@ -140,12 +146,14 @@ testKustomizeRepo
 Wait for tests to pass, then merge the PR:
 ```
 gh pr status
+```
+```
 gh pr merge -m
 ```
 
 Get back on master and do paranoia test:
 ```
-refreshMaster
+refreshMaster &&
 testKustomizeRepo
 ```
 
@@ -161,6 +169,9 @@ Note the version:
 ```
 versionCmdConfig=v0.9.12 # EDIT THIS!
 ```
+
+See the process of the cloud build job
+on the [project cloud build history page].
 
 Undraft the release on the [kustomize repo release page]:
 * Make sure the version number is what you expect.
@@ -181,8 +192,7 @@ gorepomod pin cmd/config --doIt
 
 Create the PR:
 ```
-title="Pin to cmd/config $versionCmdConfig"
-createBranch pinToCmdConfig $title
+createBranch pinToCmdConfig "Pin to cmd/config $versionCmdConfig" &&
 createPr
 ```
 
@@ -194,12 +204,14 @@ testKustomizeRepo
 Wait for tests to pass, then merge the PR:
 ```
 gh pr status  # rinse, repeat
+```
+```
 gh pr merge -m
 ```
 
 Get back on master and do paranoia test:
 ```
-refreshMaster
+refreshMaster &&
 testKustomizeRepo
 ```
 
@@ -215,6 +227,9 @@ Note the version:
 ```
 versionApi=v0.8.10 # EDIT THIS!
 ```
+
+See the process of the cloud build job
+on the [project cloud build history page].
 
 Undraft the release on the [kustomize repo release page]:
 * Make sure the version number is what you expect.
@@ -232,8 +247,7 @@ gorepomod pin api --doIt
 
 Create the PR:
 ```
-title="Pin to api $versionApi"
-createBranch pinToApi $title
+createBranch pinToApi "Pin to api $versionApi" &&
 createPr
 ```
 
@@ -245,12 +259,14 @@ testKustomizeRepo
 Wait for tests to pass, then merge the PR:
 ```
 gh pr status  # rinse, repeat
+```
+```
 gh pr merge -m
 ```
 
 Get back on master and do paranoia test:
 ```
-refreshMaster
+refreshMaster &&
 testKustomizeRepo
 ```
 
@@ -262,6 +278,9 @@ While you're waiting for the tests, review the commit log. Based on the changes 
 gorepomod release kustomize [patch|minor|major] --doIt
 ```
 
+See the process of the cloud build job
+on the [project cloud build history page].
+
 Undraft the release on the [kustomize repo release page]:
 * Make sure the version number is what you expect.
 * Remove references to commits that aren't relevant to end users of the CLI (e.g. test commits, refactors, changes that only surface in Go).
@@ -269,14 +288,14 @@ Undraft the release on the [kustomize repo release page]:
 
 ## Confirm the kustomize binary is correct
 
-> [installation instructions]: https://kubectl.docs.kubernetes.io/installation/kustomize/binaries/
-> 
->  * Follow the [installation instructions] to install your new
->    release and make sure it reports the expected version number.
->
->    If not, something is very wrong.
->
->  * Visit the [release page] and edit the release notes as desired.
+[installation instructions]: https://kubectl.docs.kubernetes.io/installation/kustomize/binaries/
+
+* Follow the [installation instructions] to install your new
+  release and make sure it reports the expected version number.
+
+  If not, something is very wrong.
+
+* Visit the [release page] and edit the release notes as desired.
 
 
 ## Unpin everything
@@ -285,15 +304,14 @@ Undraft the release on the [kustomize repo release page]:
 Go back into development mode, where all modules depend on in-repo code:
 
 ```
-gorepomod unpin api         --doIt
-gorepomod unpin cmd/config  --doIt
+gorepomod unpin api         --doIt &&
+gorepomod unpin cmd/config  --doIt &&
 gorepomod unpin kyaml       --doIt
 ```
 
 Create the PR:
 ```
-title="Back to development mode; unpin the modules"
-createBranch unpinEverything
+createBranch unpinEverything "Back to development mode; unpin the modules" &&
 createPr
 ```
 
@@ -305,12 +323,14 @@ testKustomizeRepo
 Wait for tests to pass, then merge the PR:
 ```
 gh pr status  # rinse, repeat
+```
+```
 gh pr merge -m
 ```
 
 Get back on master and do paranoia test:
 ```
-refreshMaster
+refreshMaster &&
 testKustomizeRepo
 ```
 
@@ -323,14 +343,17 @@ to test examples against your new release.
 
 ```
 sed -i "" "s/LATEST_V4_RELEASE=.*/LATEST_V4_RELEASE=v4.3.0/" Makefile
-title="Test examples against latest release"
-createBranch updateProwExamplesTarget $title
+```
+```
+createBranch updateProwExamplesTarget "Test examples against latest release" &&
 createPr
 ```
 
 Wait for tests to pass, then merge the PR:
 ```
 gh pr status  # rinse, repeat
+```
+```
 gh pr merge -m
 ```
 
@@ -574,14 +597,32 @@ git push upstream :latest_kustomize
 git tag -a latest_kustomize
 ```
 
-### Optionally build a release locally
+### Optionally build locally
 
 [localbuild.sh]: localbuild.sh
 
-Install [`cloud-build-local`], then run [localbuild.sh]:
+Load the same version of `goreleaser` referenced in `cloudbuild.yaml` via docker and run [localbuild.sh] from the container's command line:
 
 ```
-./releasing/localbuild.sh $module
+# Get goreleaser image from cloudbuild.yaml 
+export GORELEASER_IMAGE=goreleaser/goreleaser:v0.172.1
+
+# Drop into a shell
+docker run -it --entrypoint=/bin/bash  -v $(pwd):/go/src/github.com/kubernetes-sigs/kustomize -w /go/src/github.com/kubernetes-sigs/kustomize $GORELEASER_IMAGE
+
+# Run build
+./releasing/localbuild.sh TAG [--snapshot]
+```
+
+
+### Optionally build and release locally
+
+[cloudbuild-local.sh]: cloudbuild-local.sh
+
+Install [`cloud-build-local`], then run [cloudbuild-local.sh]:
+
+```
+./releasing/cloudbuild-local.sh $module
 ```
 
 This should create release artifacts in a local directory.

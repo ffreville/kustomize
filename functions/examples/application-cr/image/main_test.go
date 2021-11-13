@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package main implements adding an Application CR to a group of resources and
-// is run with `kustomize config run -- DIR/`.
+// is run with `kustomize fn run -- DIR/`.
 package main
 
 import (
@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-var input = `apiVersion: config.kubernetes.io/v1alpha1
+var input = `apiVersion: config.kubernetes.io/v1
 kind: ResourceList
 items:
 - apiVersion: v1
@@ -89,7 +89,7 @@ functionConfig:
         url: https://metrics/internal/worldpress-01/web-app
 `
 
-var output = `apiVersion: config.kubernetes.io/v1alpha1
+var output = `apiVersion: config.kubernetes.io/v1
 kind: ResourceList
 items:
 - apiVersion: v1

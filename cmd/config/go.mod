@@ -13,5 +13,5 @@ require (
 	golang.org/x/text v0.3.4 // indirect
 	gopkg.in/inf.v0 v0.9.1
 	k8s.io/kube-openapi v0.0.0-20210421082810-95288971da7e
-	sigs.k8s.io/kustomize/kyaml v0.12.0
+	sigs.k8s.io/kustomize/kyaml v0.13.0
 )

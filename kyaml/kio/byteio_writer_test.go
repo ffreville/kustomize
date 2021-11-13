@@ -45,7 +45,7 @@ g:
   h:
   - i # has a list
   - j`,
-			expectedOutput: `apiVersion: config.kubernetes.io/v1alpha1
+			expectedOutput: `apiVersion: config.kubernetes.io/v1
 kind: ResourceList
 items:
 - a: b #first
@@ -299,7 +299,13 @@ g:
 `,
 			},
 
-			expectedOutput: `a: b #first
+			expectedOutput: `e: f
+g:
+  h:
+  - i # has a list
+  - j
+---
+a: b #first
 metadata:
   annotations:
     internal.config.kubernetes.io/path: "a/b/a_test.yaml"
@@ -310,12 +316,6 @@ metadata:
   annotations:
     internal.config.kubernetes.io/path: "a/b/a_test.yaml"
     config.kubernetes.io/path: 'a/b/a_test.yaml'
----
-e: f
-g:
-  h:
-  - i # has a list
-  - j
 `,
 		},
 
@@ -477,7 +477,7 @@ metadata:
 }`,
 			},
 
-			expectedOutput: `apiVersion: config.kubernetes.io/v1alpha1
+			expectedOutput: `apiVersion: config.kubernetes.io/v1
 kind: ResourceList
 items:
 - {"a": "b", "metadata": {"annotations": {"internal.config.kubernetes.io/path": "test.json"}}}

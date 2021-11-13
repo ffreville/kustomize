@@ -37,7 +37,7 @@ func ExampleBuild_modify() {
 
 	// for testing purposes only -- normally read from stdin when Executing
 	cmd.SetIn(bytes.NewBufferString(`
-apiVersion: config.kubernetes.io/v1alpha1
+apiVersion: config.kubernetes.io/v1
 kind: ResourceList
 # items are provided as nodes
 items:
@@ -61,7 +61,7 @@ functionConfig:
 	}
 
 	// Output:
-	// apiVersion: config.kubernetes.io/v1alpha1
+	// apiVersion: config.kubernetes.io/v1
 	// kind: ResourceList
 	// items:
 	// - apiVersion: apps/v1
@@ -133,7 +133,7 @@ metadata:
 
 	// for testing purposes only -- normally read from stdin when Executing
 	cmd.SetIn(bytes.NewBufferString(`
-apiVersion: config.kubernetes.io/v1alpha1
+apiVersion: config.kubernetes.io/v1
 kind: ResourceList
 # items are provided as nodes
 items:
@@ -154,7 +154,7 @@ functionConfig:
 	}
 
 	// Output:
-	// apiVersion: config.kubernetes.io/v1alpha1
+	// apiVersion: config.kubernetes.io/v1
 	// kind: ResourceList
 	// items:
 	// - apiVersion: apps/v1
@@ -241,7 +241,7 @@ metadata:
 
 	// for testing purposes only -- normally read from stdin when Executing
 	cmd.SetIn(bytes.NewBufferString(`
-apiVersion: config.kubernetes.io/v1alpha1
+apiVersion: config.kubernetes.io/v1
 kind: ResourceList
 # items are provided as nodes
 items:
@@ -268,7 +268,7 @@ functionConfig:
 	}
 
 	// Output:
-	// apiVersion: config.kubernetes.io/v1alpha1
+	// apiVersion: config.kubernetes.io/v1
 	// kind: ResourceList
 	// items:
 	// - apiVersion: apps/v1
@@ -296,7 +296,7 @@ functionConfig:
 func ExampleBuild_validate() {
 	fn := func(rl *framework.ResourceList) error {
 		// validation results
-		var validationResults []framework.ResultItem
+		var validationResults framework.Results
 
 		// validate that each Deployment resource has spec.replicas set
 		for i := range rl.Items {
@@ -319,34 +319,31 @@ func ExampleBuild_validate() {
 			if r != nil {
 				continue
 			}
-			validationResults = append(validationResults, framework.ResultItem{
+			validationResults = append(validationResults, &framework.Result{
 				Severity: framework.Error,
 				Message:  "field is required",
-				ResourceRef: yaml.ResourceIdentifier{
+				ResourceRef: &yaml.ResourceIdentifier{
 					TypeMeta: meta.TypeMeta,
 					NameMeta: meta.ObjectMeta.NameMeta,
 				},
-				Field: framework.Field{
-					Path:           "spec.replicas",
-					SuggestedValue: "1",
+				Field: &framework.Field{
+					Path:          "spec.replicas",
+					ProposedValue: "1",
 				},
 			})
 		}
 
 		if len(validationResults) > 0 {
-			rl.Result = &framework.Result{
-				Name:  "replicas-validator",
-				Items: validationResults,
-			}
+			rl.Results = validationResults
 		}
 
-		return rl.Result
+		return rl.Results
 	}
 
 	cmd := command.Build(framework.ResourceListProcessorFunc(fn), command.StandaloneDisabled, true)
 	// for testing purposes only -- normally read from stdin when Executing
 	cmd.SetIn(bytes.NewBufferString(`
-apiVersion: config.kubernetes.io/v1alpha1
+apiVersion: config.kubernetes.io/v1
 kind: ResourceList
 # items are provided as nodes
 items:
@@ -362,7 +359,7 @@ items:
 	}
 
 	// Output:
-	// apiVersion: config.kubernetes.io/v1alpha1
+	// apiVersion: config.kubernetes.io/v1
 	// kind: ResourceList
 	// items:
 	// - apiVersion: apps/v1
@@ -370,15 +367,13 @@ items:
 	//   metadata:
 	//     name: foo
 	// results:
-	//   name: replicas-validator
-	//   items:
-	//   - message: field is required
-	//     severity: error
-	//     resourceRef:
-	//       apiVersion: apps/v1
-	//       kind: Deployment
-	//       name: foo
-	//     field:
-	//       path: spec.replicas
-	//       suggestedValue: "1"
+	// - message: field is required
+	//   severity: error
+	//   resourceRef:
+	//     apiVersion: apps/v1
+	//     kind: Deployment
+	//     name: foo
+	//   field:
+	//     path: spec.replicas
+	//     proposedValue: "1"
 }
