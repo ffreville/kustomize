@@ -25,3 +25,12 @@
 # build
 dist
 kustomize/.go-build-flags
+
+# Hugo site
+site/public/
+site/resources/
+site/.hugo_build.lock
+**/node_modules/
+
+# goreleaser artifacts
+**/dist/

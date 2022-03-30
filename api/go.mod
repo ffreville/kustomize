@@ -14,7 +14,7 @@ require (
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/kube-openapi v0.0.0-20210421082810-95288971da7e
-	sigs.k8s.io/kustomize/kyaml v0.13.3
+	sigs.k8s.io/kustomize/kyaml v0.13.6
 	sigs.k8s.io/yaml v1.2.0
 	sylr.dev/yaml/age/v3 v3.0.0-20210907063746-ab99b234209c
 	sylr.dev/yaml/v3 v3.0.0-20210127132132-941109e4f08c
