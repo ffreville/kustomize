@@ -27,6 +27,7 @@ dist
 kustomize/.go-build-flags
 
 # Hugo site
+publishedSite/
 site/public/
 site/resources/
 site/.hugo_build.lock
