@@ -19,9 +19,11 @@ import (
 	"sylr.dev/yaml/v3"
 )
 
+type ageIdentityCache map[[sha256.Size]byte]age.Identity
+
 var (
-	sshAgeIdentitiesCache      map[[sha256.Size]byte]age.Identity = make(map[[sha256.Size]byte]age.Identity)
-	sshAgeIdentitiesCacheMutex sync.RWMutex                       = sync.RWMutex{}
+	sshAgeIdentitiesCache      ageIdentityCache = make(ageIdentityCache)
+	sshAgeIdentitiesCacheMutex sync.RWMutex     = sync.RWMutex{}
 )
 
 func decryptValueWithAge(value []byte, ids []age.Identity) ([]byte, error) {

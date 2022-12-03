@@ -10,13 +10,13 @@ require (
 	github.com/imdario/mergo v0.3.6
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/crypto v0.0.0-20220817201139-bc19a97f63c8
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+	golang.org/x/crypto v0.3.0
+	golang.org/x/term v0.2.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/kube-openapi v0.0.0-20220401212409-b28bf2818661
 	sigs.k8s.io/kustomize/kyaml v0.13.9
 	sigs.k8s.io/yaml v1.2.0
-	sylr.dev/yaml/age/v3 v3.0.0-20220527135827-28ffff5246ba
+	sylr.dev/yaml/age/v3 v3.0.0-20221203153010-eb6b46db8d90
 	sylr.dev/yaml/v3 v3.0.0-20220527135632-500fddf2b049
 )
 
@@ -36,9 +36,9 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/xlab/treeprint v1.1.0 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
-	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
-	golang.org/x/sys v0.0.0-20220817070843-5a390386f1f2 // indirect
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/net v0.2.0 // indirect
+	golang.org/x/sys v0.2.0 // indirect
+	golang.org/x/text v0.4.0 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
