@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	"filippo.io/age"
 	"github.com/stretchr/testify/require"
 	ldr "sigs.k8s.io/kustomize/api/loader"
 	valtest_test "sigs.k8s.io/kustomize/api/testutils/valtest"
@@ -108,7 +109,7 @@ func TestKeyValuesFromFileSources(t *testing.T) {
 	require.NoError(t, err)
 	kvl := makeKvLoader(fSys)
 	for _, tc := range tests {
-		kvs, err := kvl.keyValuesFromFileSources(tc.sources)
+		kvs, err := kvl.keyValuesFromFileSources(tc.sources, []age.Identity{})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

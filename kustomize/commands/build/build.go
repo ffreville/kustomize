@@ -119,6 +119,8 @@ func NewCmdBuild(
 	}
 
 	AddFlagEnableHelm(cmd.Flags())
+	AddFlagNoAGE(cmd.Flags())
+	AddFlagNotInterractive(cmd.Flags())
 	return cmd
 }
 

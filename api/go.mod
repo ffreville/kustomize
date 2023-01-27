@@ -3,18 +3,24 @@ module sigs.k8s.io/kustomize/api
 go 1.19
 
 require (
+	filippo.io/age v1.1.1
 	github.com/evanphx/json-patch v4.11.0+incompatible
 	github.com/go-errors/errors v1.4.2
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/imdario/mergo v0.3.6
 	github.com/stretchr/testify v1.8.1
+	golang.org/x/crypto v0.4.0
+	golang.org/x/term v0.3.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/kube-openapi v0.0.0-20230109183929-3758b55a6596
 	sigs.k8s.io/kustomize/kyaml v0.13.9
 	sigs.k8s.io/yaml v1.3.0
+	sylr.dev/yaml/age/v3 v3.0.0-20221203153010-eb6b46db8d90
+	sylr.dev/yaml/v3 v3.0.0-20220527135632-500fddf2b049
 )
 
 require (
+	filippo.io/edwards25519 v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
 	github.com/go-openapi/jsonreference v0.20.1 // indirect

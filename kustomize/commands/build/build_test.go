@@ -128,6 +128,7 @@ func TestBuild(t *testing.T) {
 	loadFileSystem(fSys)
 	buffy := new(bytes.Buffer)
 	cmd := NewCmdBuild(fSys, MakeHelp("foo", "bar"), buffy)
+	cmd.Flags().Set("no-age", "true")
 	if err := cmd.RunE(cmd, []string{}); err != nil {
 		t.Fatal(err)
 	}
@@ -143,6 +144,7 @@ func TestBuildWithShardedOutput(t *testing.T) {
 	fSys.Mkdir("someDir")
 	buffy := new(bytes.Buffer)
 	cmd := NewCmdBuild(fSys, MakeHelp("foo", "bar"), buffy)
+	cmd.Flags().Set("no-age", "true")
 	cmd.Flags().Set("output", "someDir")
 	cmd.Flags().Set("enable-managedby-label", "true")
 	if err = cmd.RunE(cmd, []string{}); err != nil {

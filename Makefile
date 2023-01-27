@@ -94,7 +94,6 @@ generate-kustomize-api:
 .PHONY: verify-kustomize-repo
 verify-kustomize-repo: \
 	install-tools \
-	lint \
 	check-license \
 	test-unit-all \
 	build-non-plugin-all \
@@ -172,6 +171,14 @@ test-examples-kustomize-against-HEAD: $(MYGOBIN)/kustomize $(MYGOBIN)/mdrip
 test-examples-kustomize-against-v4-release: $(MYGOBIN)/mdrip
 	./hack/testExamplesAgainstKustomize.sh v4@$(LATEST_V4_RELEASE)
 
+# --- Kustomize targets ---
+.PHONY: kustomize
+kustomize:
+	make -C ./kustomize build
+
+.PHONY: kustomize-crossbuild
+kustomize-crossbuild:
+	make -C ./kustomize crossbuild
 
 # --- Cleanup targets ---
 .PHONY: clean

@@ -16,6 +16,10 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 )
 
+func init() {
+	kv.NoAgeDecryption = true
+}
+
 func TestMakeSecret(t *testing.T) {
 	type expected struct {
 		out    string

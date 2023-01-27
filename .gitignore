@@ -22,6 +22,10 @@
 
 .bin
 
+# build
+dist
+kustomize/.go-build-flags
+
 # Hugo site
 publishedSite/
 site/public/
