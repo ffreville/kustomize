@@ -88,7 +88,7 @@ func (kvl *loader) getAgeIdentities(sources []string) ([]age.Identity, error) {
 
 	if len(sources) > 0 {
 		for _, path := range sources {
-			path, err := filepath.Abs(path)
+			path, err := filepath.Abs(os.ExpandEnv(path))
 			if err != nil {
 				return nil, err
 			}
