@@ -15,7 +15,7 @@ require (
 	k8s.io/kube-openapi v0.0.0-20230109183929-3758b55a6596
 	sigs.k8s.io/kustomize/kyaml v0.13.9
 	sigs.k8s.io/yaml v1.3.0
-	sylr.dev/yaml/age/v3 v3.0.0-20221203153010-eb6b46db8d90
+	sylr.dev/yaml/age/v3 v3.0.0-20221203152643-412e9df4c040
 	sylr.dev/yaml/v3 v3.0.0-20220527135632-500fddf2b049
 )
 
