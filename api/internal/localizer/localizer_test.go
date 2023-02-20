@@ -102,6 +102,14 @@ func addFiles(t *testing.T, fSys filesys.FileSystem, parentDir string, files map
 	}
 }
 
+func checkRun(t *testing.T, fSys filesys.FileSystem, target, scope, dst string) {
+	t.Helper()
+
+	actualDst, err := Run(target, scope, dst, fSys)
+	require.NoError(t, err)
+	require.Equal(t, dst, actualDst)
+}
+
 func makeFileSystems(t *testing.T, target string, files map[string]string) (expected filesys.FileSystem, actual filesys.FileSystem) {
 	t.Helper()
 
@@ -161,9 +169,7 @@ func checkLocalizeInTargetSuccess(t *testing.T, files map[string]string) {
 	fSys := makeMemoryFs(t)
 	addFiles(t, fSys, "/a", files)
 
-	err := Run("/a", "/", "dst", fSys)
-	require.NoError(t, err)
-
+	checkRun(t, fSys, "/a", "/", "/dst")
 	fSysExpected := makeMemoryFs(t)
 	addFiles(t, fSysExpected, "/a", files)
 	addFiles(t, fSysExpected, "/dst/a", files)
@@ -179,9 +185,7 @@ namePrefix: my-
 	}
 	fSysExpected, fSysActual := makeFileSystems(t, "/a", kustomization)
 
-	err := Run("/a", "", "/a/b/dst", fSysActual)
-	require.NoError(t, err)
-
+	checkRun(t, fSysActual, "/a", "/a", "/a/b/dst")
 	addFiles(t, fSysExpected, "/a/b/dst", kustomization)
 	checkFSys(t, fSysExpected, fSysActual)
 }
@@ -202,9 +206,7 @@ patches:
 	}
 	fSysExpected, fSysActual := makeFileSystems(t, "/a/b", kustomization)
 
-	err := Run("/a/b", "/", "/a/b/dst", fSysActual)
-	require.NoError(t, err)
-
+	checkRun(t, fSysActual, "/a/b", "/", "/a/b/dst")
 	addFiles(t, fSysExpected, "/a/b/dst/a/b", kustomization)
 	checkFSys(t, fSysExpected, fSysActual)
 }
@@ -259,7 +261,7 @@ func TestLoadUnknownKustFields(t *testing.T) {
 suffix: invalid`,
 	})
 
-	err := Run("/a", "", "", fSysTest)
+	_, err := Run("/a", "", "", fSysTest)
 	require.EqualError(t, err,
 		`unable to localize target "/a": invalid Kustomization: error unmarshaling JSON: while decoding JSON: json: unknown field "suffix"`)
 
@@ -299,9 +301,7 @@ patches:
 	}
 	expected, actual := makeFileSystems(t, "/alpha/beta/gamma", kustAndPatch)
 
-	err := Run("/alpha/beta/gamma", "/", "", actual)
-	require.NoError(t, err)
-
+	checkRun(t, actual, "/alpha/beta/gamma", "/", "/localized-gamma")
 	addFiles(t, expected, "/localized-gamma/alpha/beta/gamma", map[string]string{
 		"kustomization.yaml": `apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -328,9 +328,7 @@ kind: Kustomization
 	}
 	expected, actual := makeFileSystems(t, "/alpha/beta", targetAndUnreferenced)
 
-	err := Run("/alpha/beta", "/alpha", "/beta", actual)
-	require.NoError(t, err)
-
+	checkRun(t, actual, "/alpha/beta", "/alpha", "/beta")
 	addFiles(t, expected, "/beta/beta", map[string]string{
 		"kustomization.yaml": targetAndUnreferenced["kustomization.yaml"],
 		"env":                targetAndUnreferenced["env"],
@@ -586,15 +584,43 @@ patches:
 	}
 	expected, actual := makeFileSystems(t, "/a/b", kustAndPatch)
 
-	err := Run("/a/b", "", "/dst", actual)
+	_, err := Run("/a/b", "", "/dst", actual)
 	require.EqualError(t, err, `unable to localize target "/a/b": unable to localize patches: invalid file reference: '/a/b/name-DNE.yaml' doesn't exist`)
 
 	checkFSys(t, expected, actual)
 }
 
 func TestLocalizePluginsInlineAndFile(t *testing.T) {
-	kustAndPlugins := map[string]string{
-		"kustomization.yaml": `apiVersion: kustomize.config.k8s.io/v1beta1
+	for _, test := range []struct {
+		name  string
+		files map[string]string
+	}{
+		{
+			name: "generators",
+			files: map[string]string{
+				"kustomization.yaml": `generators:
+- generator.yaml
+- |
+  apiVersion: builtin
+  env: second.properties
+  kind: ConfigMapGenerator
+  metadata:
+    name: inline
+`,
+				"generator.yaml": `apiVersion: builtin
+env: first.properties
+kind: ConfigMapGenerator
+metadata:
+  name: file
+`,
+				"first.properties":  "APPLE=orange",
+				"second.properties": "BANANA=pear",
+			},
+		},
+		{
+			name: "transformers",
+			files: map[string]string{
+				"kustomization.yaml": `apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 transformers:
 - |
@@ -605,16 +631,39 @@ transformers:
   path: patchSM-one.yaml
 - patch.yaml
 `,
-		"patch.yaml": `apiVersion: builtin
+				"patch.yaml": `apiVersion: builtin
 kind: PatchTransformer
 metadata:
   name: file
 path: patchSM-two.yaml
 `,
-		"patchSM-one.yaml": podConfiguration,
-		"patchSM-two.yaml": podConfiguration,
+				"patchSM-one.yaml": podConfiguration,
+				"patchSM-two.yaml": podConfiguration,
+			},
+		},
+		{
+			name: "validators",
+			files: map[string]string{
+				"kustomization.yaml": `validators:
+- |
+  apiVersion: builtin
+  kind: ReplacementTransformer
+  metadata:
+    name: inline
+  replacements:
+  - path: first.yaml
+- second.yaml
+`,
+				"first.yaml":       replacementTransformerWithPath,
+				"second.yaml":      replacementTransformerWithPath,
+				"replacement.yaml": replacements,
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			checkLocalizeInTargetSuccess(t, test.files)
+		})
 	}
-	checkLocalizeInTargetSuccess(t, kustAndPlugins)
 }
 
 func TestLocalizeMultiplePluginsInEntry(t *testing.T) {
@@ -659,9 +708,7 @@ transformers:
 	}
 	expected, actual := makeFileSystems(t, "/a", kustAndPlugins)
 
-	err := Run("/a", "", "/dst", actual)
-	require.NoError(t, err)
-
+	checkRun(t, actual, "/a", "/a", "/dst")
 	addFiles(t, expected, "/dst", map[string]string{
 		"kustomization.yaml": kustAndPlugins["kustomization.yaml"],
 		"patch.yaml":         fmt.Sprintf(patchf, "patchSM.yaml"),
@@ -670,37 +717,61 @@ transformers:
 	checkFSys(t, expected, actual)
 }
 
-func TestLocalizeGenerators(t *testing.T) {
-	kustAndPlugins := map[string]string{
-		"kustomization.yaml": `apiVersion: kustomize.config.k8s.io/v1beta1
-generators:
-- plugin.yaml
-- |
-  apiVersion: builtin
-  behavior: create
-  kind: ConfigMapGenerator
-  literals:
-  - APPLE=orange
-  metadata:
-    name: another-map
-  ---
-  apiVersion: builtin
-  kind: SecretGenerator
-  literals:
-  - APPLE=b3Jhbmdl
-  metadata:
-    name: secret
-  options:
-    disableNameSuffixHash: true
-kind: Kustomization
+func TestLocalizeGeneratorsConfigMap(t *testing.T) {
+	files := map[string]string{
+		"kustomization.yaml": `generators:
+- configMapGenerator
 `,
-		"plugin.yaml": `apiVersion: builtin
+		"configMapGenerator": `apiVersion: builtin
+behavior: create
+env: one.env
+envs:
+- two.env
+- three.env
+files:
+- four.properties
+- key=five.properties
 kind: ConfigMapGenerator
 metadata:
-  name: map
+  name: custom-generator
+options:
+  disableNameSuffix: true
 `,
+		"one.env":         "key1=value1",
+		"two.env":         "key2=value2",
+		"three.env":       "key3=value3",
+		"four.properties": "key4=value4",
+		"five.properties": "key5=value5",
 	}
-	checkLocalizeInTargetSuccess(t, kustAndPlugins)
+	checkLocalizeInTargetSuccess(t, files)
+}
+
+func TestLocalizeGeneratorsSecret(t *testing.T) {
+	files := map[string]string{
+		"kustomization.yaml": `generators:
+- secretGenerator
+`,
+		"secretGenerator": `apiVersion: builtin
+env: one.env
+envs:
+- two.env
+- three.env
+files:
+- four.properties
+- key=five.properties
+kind: SecretGenerator
+literals:
+- key6=value6
+metadata:
+  name: custom-generator
+`,
+		"one.env":         "key1=value1",
+		"two.env":         "key2=value2",
+		"three.env":       "key3=value3",
+		"four.properties": "key4=value4",
+		"five.properties": "key5=value5",
+	}
+	checkLocalizeInTargetSuccess(t, files)
 }
 
 func TestLocalizeTransformersPatch(t *testing.T) {
@@ -833,7 +904,23 @@ validators:
 	checkLocalizeInTargetSuccess(t, kustAndPlugin)
 }
 
-func TestLocalizeBuiltinPluginsNotResource(t *testing.T) {
+func TestLocalizeBuiltinPlugins_SequenceScalarEquivalence(t *testing.T) {
+	kustomization := map[string]string{
+		"kustomization.yaml": `transformers:
+- |
+  apiVersion: builtin
+  kind: PatchTransformer
+  metadata:
+    name: path-should-be-scalar-but-accept-sequence
+  path:
+  - patchSM.yaml
+`,
+		"patchSM.yaml": podConfiguration,
+	}
+	checkLocalizeInTargetSuccess(t, kustomization)
+}
+
+func TestLocalizeBuiltinPlugins_NotResource(t *testing.T) {
 	type testCase struct {
 		name         string
 		files        map[string]string
@@ -880,7 +967,7 @@ metadata:
 		t.Run(test.name, func(t *testing.T) {
 			expected, actual := makeFileSystems(t, "/", test.files)
 
-			err := Run("/", "", "/dst", actual)
+			_, err := Run("/", "", "/dst", actual)
 
 			var actualErr ResourceLoadError
 			require.ErrorAs(t, err, &actualErr)
@@ -895,24 +982,52 @@ when parsing as filepath received error: %s`, test.errPrefix, test.inlineErrMsg,
 	}
 }
 
-func TestLocalizeBuiltinPluginsFileError(t *testing.T) {
-	kustAndPatches := map[string]string{
-		"kustomization.yaml": `transformers:
-- patch.yaml
+func TestLocalizeBuiltinPlugins_Errors(t *testing.T) {
+	for name, test := range map[string]struct {
+		files        map[string]string
+		fieldSpecErr string
+		locErr       string
+	}{
+		"file_dne": {
+			files: map[string]string{
+				"kustomization.yaml": `transformers:
+- |
+  apiVersion: builtin
+  kind: PatchTransformer
+  metadata:
+    name: file-does-not-exist
+  path: patchSM.yaml
 `,
-		"patch.yaml": `apiVersion: builtin
-kind: PatchTransformer
-metadata:
-  name: my-patch
-path: patchSM.yaml
+			},
+			fieldSpecErr: "considering field 'path' of object PatchTransformer.builtin.[noGrp]/file-does-not-exist.[noNs]",
+			locErr:       "invalid file reference: '/a/patchSM.yaml' doesn't exist",
+		},
+		"not_sequence_or_scalar": {
+			files: map[string]string{
+				"kustomization.yaml": `transformers:
+- |
+  apiVersion: builtin
+  kind: PatchTransformer
+  metadata:
+    name: path-node-has-wrong-kind
+  path:
+    mappingNode: patchSM.yaml
 `,
+				"patchSM.yaml": podConfiguration,
+			},
+			fieldSpecErr: "considering field 'path' of object PatchTransformer.builtin.[noGrp]/path-node-has-wrong-kind.[noNs]",
+			locErr:       "expected sequence or scalar node",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			expected, actual := makeFileSystems(t, "/a", test.files)
+			_, err := Run("/a", "", "/dst", actual)
+			const errPrefix = `unable to localize target "/a"`
+			require.EqualError(t, err, fmt.Sprintf(
+				"%s: %s: %s", errPrefix, test.fieldSpecErr, test.locErr))
+			checkFSys(t, expected, actual)
+		})
 	}
-	_, actual := makeFileSystems(t, "/a", kustAndPatches)
-
-	err := Run("/a", "", "/dst", actual)
-	require.EqualError(t, err, "unable to localize target \"/a\": "+
-		"considering field 'path' of object PatchTransformer.builtin.[noGrp]/my-patch.[noNs]: "+
-		"invalid file reference: '/a/patchSM.yaml' doesn't exist")
 }
 
 func TestLocalizeDirInTarget(t *testing.T) {
@@ -1026,9 +1141,7 @@ namespace: kustomize-namespace
 	}
 	expected, actual := makeFileSystems(t, "/alpha", kustAndComponents)
 
-	err := Run("/alpha/beta/gamma", "/alpha", "/alpha/beta/dst", actual)
-	require.NoError(t, err)
-
+	checkRun(t, actual, "/alpha/beta/gamma", "/alpha", "/alpha/beta/dst")
 	cleanedFiles := map[string]string{
 		"beta/gamma/kustomization.yaml": `apiVersion: kustomize.config.k8s.io/v1beta1
 components:
@@ -1091,9 +1204,7 @@ namePrefix: my-
 	}
 	expected, actual := makeFileSystems(t, "/a/b", kustAndResources)
 
-	err := Run("/a/b", "/", "", actual)
-	require.NoError(t, err)
-
+	checkRun(t, actual, "/a/b", "/", "/localized-b")
 	addFiles(t, expected, "/localized-b/a/b", kustAndResources)
 	checkFSys(t, expected, actual)
 }
@@ -1108,7 +1219,7 @@ resources:
 	}
 	expected, actual := makeFileSystems(t, "/a", kustAndResources)
 
-	err := Run("/a", "/", "", actual)
+	_, err := Run("/a", "/", "", actual)
 
 	const expectedFileErr = `invalid file reference: '/a/b' must resolve to a file`
 	const expectedRootErr = `unable to localize root "b": unable to find one of 'kustomization.yaml', 'kustomization.yml' or 'Kustomization' in directory '/a/b'`
@@ -1162,8 +1273,13 @@ func TestLocalizeHelmCharts(t *testing.T) {
 - includeCRDs: true
   name: localize-valuesFile
   valuesFile: file
+- additionalValuesFiles:
+  - another
+  - third
 `,
 				"file":                                   valuesFile,
+				"another":                                valuesFile,
+				"third":                                  valuesFile,
 				"charts/nothing-to-localize/values.yaml": valuesFile,
 				"charts/localize-valuesFile/values.yaml": valuesFile,
 			},
@@ -1205,9 +1321,7 @@ func TestLocalizeHelmChartsNoDefault(t *testing.T) {
 	}
 	expected, actual := makeFileSystems(t, "/a", files)
 
-	err := Run("/a", "", "/dst", actual)
-	require.NoError(t, err)
-
+	checkRun(t, actual, "/a", "/a", "/dst")
 	addFiles(t, expected, "/dst", map[string]string{
 		"kustomization.yaml":    files["kustomization.yaml"],
 		"home/name/values.yaml": valuesFile,
@@ -1321,9 +1435,7 @@ helmGlobals:
 		t.Run(name, func(t *testing.T) {
 			expected, actual := makeFileSystems(t, "/a/b", test.files)
 
-			err := Run("/a/b", "/a/b", "/dst", actual)
-			require.NoError(t, err)
-
+			checkRun(t, actual, "/a/b", "/a/b", "/dst")
 			addFiles(t, expected, "/dst", test.copiedFiles)
 			checkFSys(t, expected, actual)
 		})
@@ -1340,9 +1452,7 @@ func TestCopyChartHomeEmpty(t *testing.T) {
 	require.NoError(t, actual.Mkdir("/a/home"))
 	require.NoError(t, expected.Mkdir("/a/home"))
 
-	err := Run("/a", "", "/dst", actual)
-	require.NoError(t, err)
-
+	checkRun(t, actual, "/a", "/a", "/dst")
 	addFiles(t, expected, "/dst", kustomization)
 	require.NoError(t, expected.Mkdir("/dst/home"))
 	checkFSys(t, expected, actual)
@@ -1384,13 +1494,74 @@ func TestCopyChartHomeError(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			expected, actual := makeFileSystems(t, "/", test.files)
 
-			err := Run("/a/b", "/a", "/dst", actual)
+			_, err := Run("/a/b", "/a", "/dst", actual)
 			const prefix = `unable to localize target "/a/b"`
 			require.EqualError(t, err, fmt.Sprintf("%s: %s", prefix, test.err))
 
 			checkFSys(t, expected, actual)
 		})
 	}
+}
+
+func TestLocalizeGeneratorsHelm(t *testing.T) {
+	files := map[string]string{
+		"kustomization.yaml": `generators:
+- default.yaml
+- explicit.yaml
+`,
+		"default.yaml": `apiVersion: builtin
+kind: HelmChartInflationGenerator
+metadata:
+  name: no-explicit-references
+name: minecraft
+releaseName: moria
+repo: https://itzg.github.io/minecraft-server-charts
+version: 3.1.3
+`,
+		"explicit.yaml": `additionalValuesFiles:
+- time.yaml
+- life.yaml
+- light.yaml
+apiVersion: builtin
+chartHome: home
+kind: HelmChartInflationGenerator
+metadata:
+  name: explicit-references
+name: mapleStory
+valuesFile: mapleValues.yaml
+`,
+		"time.yaml":                    valuesFile,
+		"life.yaml":                    valuesFile,
+		"light.yaml":                   valuesFile,
+		"mapleValues.yaml":             valuesFile,
+		"home/mapleStory/values.yaml":  valuesFile,
+		"charts/minecraft/values.yaml": valuesFile,
+	}
+	checkLocalizeInTargetSuccess(t, files)
+}
+
+func TestLocalizeGeneratorsNoHelm(t *testing.T) {
+	files := map[string]string{
+		"kustomization.yaml": `generators:
+- configMap.yaml
+`,
+		"configMap.yaml": `apiVersion: builtin
+kind: ConfigMapGenerator
+literals:
+- APPLE=orange
+metadata:
+  name: not-helm-shouldn't-copy-default-helm-chart-home
+`,
+		"charts/minecraft/values.yaml": valuesFile,
+	}
+	expected, actual := makeFileSystems(t, "/a", files)
+
+	checkRun(t, actual, "/a", "/a", "/dst")
+	addFiles(t, expected, "/dst", map[string]string{
+		"kustomization.yaml": files["kustomization.yaml"],
+		"configMap.yaml":     files["configMap.yaml"],
+	})
+	checkFSys(t, expected, actual)
 }
 
 func TestLocalizeEmpty(t *testing.T) {

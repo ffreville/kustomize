@@ -38,10 +38,11 @@ type localizer struct {
 }
 
 // Run attempts to localize the kustomization root at target with the given localize arguments
-func Run(target string, scope string, newDir string, fSys filesys.FileSystem) error {
+// and returns the path to the created newDir.
+func Run(target, scope, newDir string, fSys filesys.FileSystem) (string, error) {
 	ldr, args, err := NewLoader(target, scope, newDir, fSys)
 	if err != nil {
-		return errors.Wrap(err)
+		return "", errors.Wrap(err)
 	}
 	defer func() { _ = ldr.Cleanup() }()
 
@@ -51,7 +52,7 @@ func Run(target string, scope string, newDir string, fSys filesys.FileSystem) er
 	}
 	dst := args.NewDir.Join(toDst)
 	if err = fSys.MkdirAll(dst); err != nil {
-		return errors.WrapPrefixf(err, "unable to create directory in localize destination")
+		return "", errors.WrapPrefixf(err, "unable to create directory in localize destination")
 	}
 
 	err = (&localizer{
@@ -66,9 +67,9 @@ func Run(target string, scope string, newDir string, fSys filesys.FileSystem) er
 		if errCleanup != nil {
 			log.Printf("unable to clean localize destination: %s", errCleanup)
 		}
-		return errors.WrapPrefixf(err, "unable to localize target %q", target)
+		return "", errors.WrapPrefixf(err, "unable to localize target %q", target)
 	}
-	return nil
+	return args.NewDir.String(), nil
 }
 
 // localize localizes the root that lc is at
@@ -193,9 +194,7 @@ func (lc *localizer) localizeNativeFields(kust *types.Kustomization) error {
 		if err != nil {
 			return errors.WrapPrefixf(err, "unable to localize patchesStrategicMerge entry")
 		}
-		if locPath != "" {
-			kust.PatchesStrategicMerge[i] = types.PatchStrategicMerge(locPath)
-		}
+		kust.PatchesStrategicMerge[i] = types.PatchStrategicMerge(locPath)
 	}
 	for i, replacement := range kust.Replacements {
 		locPath, err := lc.localizeFile(replacement.Path)
@@ -222,23 +221,35 @@ func (lc *localizer) localizeGenerator(generator *types.GeneratorArgs) error {
 	}
 	locFiles := make([]string, len(generator.FileSources))
 	for i, file := range generator.FileSources {
-		k, f, err := generators.ParseFileSource(file)
+		locFiles[i], err = lc.localizeFileSource(file)
 		if err != nil {
-			return errors.WrapPrefixf(err, "unable to parse generator files entry %q", file)
+			return err
 		}
-		newFile, err := lc.localizeFile(f)
-		if err != nil {
-			return errors.WrapPrefixf(err, "unable to localize generator files path in entry %q", file)
-		}
-		if f != file {
-			newFile = k + "=" + newFile
-		}
-		locFiles[i] = newFile
 	}
 	generator.EnvSource = locEnvSrc
 	generator.EnvSources = locEnvs
 	generator.FileSources = locFiles
 	return nil
+}
+
+// localizeFileSource returns the localized file source found in configMap and
+// secretGenerators.
+func (lc *localizer) localizeFileSource(source string) (string, error) {
+	key, file, err := generators.ParseFileSource(source)
+	if err != nil {
+		return "", errors.Wrap(err)
+	}
+	locFile, err := lc.localizeFile(file)
+	if err != nil {
+		return "", errors.WrapPrefixf(err, "invalid file source %q", source)
+	}
+	var locSource string
+	if source == file {
+		locSource = locFile
+	} else {
+		locSource = key + "=" + locFile
+	}
+	return locSource, nil
 }
 
 // localizeHelmInflationGenerator localizes helmChartInflationGenerator on kust.
@@ -269,6 +280,14 @@ func (lc *localizer) localizeHelmCharts(kust *types.Kustomization) error {
 			return errors.WrapPrefixf(err, "unable to localize helmCharts entry %d valuesFile", i)
 		}
 		kust.HelmCharts[i].ValuesFile = locFile
+
+		for j, valuesFile := range chart.AdditionalValuesFiles {
+			locFile, err = lc.localizeFile(valuesFile)
+			if err != nil {
+				return errors.WrapPrefixf(err, "unable to localize helmCharts entry %d additionalValuesFiles", i)
+			}
+			kust.HelmCharts[i].AdditionalValuesFiles[j] = locFile
+		}
 	}
 	if kust.HelmGlobals != nil {
 		locDir, err := lc.copyChartHomeEntry(kust.HelmGlobals.ChartHome)
@@ -559,10 +578,9 @@ func (lc *localizer) localizeBuiltinPlugins(kust *types.Kustomization) error {
 	return nil
 }
 
-// localizeK8sResource returns the localized file path if resourceEntry is a
-// file containing a kubernetes resource.
-// localizeK8sResource returns the empty string if resourceEntry is an inline
-// resource.
+// localizeK8sResource returns the localized resourceEntry if it is a file
+// containing a kubernetes resource.
+// localizeK8sResource returns resourceEntry if it is an inline resource.
 func (lc *localizer) localizeK8sResource(resourceEntry string) (string, error) {
 	_, isFile, err := lc.loadK8sResource(resourceEntry)
 	if err != nil {
@@ -571,7 +589,7 @@ func (lc *localizer) localizeK8sResource(resourceEntry string) (string, error) {
 	if isFile {
 		return lc.localizeFile(resourceEntry)
 	}
-	return "", nil
+	return resourceEntry, nil
 }
 
 // loadK8sResource tries to load resourceEntry as a file path or inline

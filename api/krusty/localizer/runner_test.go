@@ -264,10 +264,11 @@ func TestWorkingDir(t *testing.T) {
 	fsExpected, fsActual, wd := PrepareFs(t, []string{"target", "base"}, files)
 	SetWorkingDir(t, wd.String())
 
-	err := localizer.Run(fsActual, "target", ".", "")
+	dst, err := localizer.Run(fsActual, "target", ".", "")
 	require.NoError(t, err)
+	require.Equal(t, wd.Join("localized-target"), dst)
 
-	SetupDir(t, fsExpected, wd.Join("localized-target"), files)
+	SetupDir(t, fsExpected, dst, files)
 	CheckFs(t, wd.String(), fsExpected, fsActual)
 }
 
@@ -301,10 +302,10 @@ func TestLoaderSymlinks(t *testing.T) {
 	})
 	SetWorkingDir(t, testDir.String())
 
-	err := localizer.Run(fsActual, "target-link", "target", "")
+	dst, err := localizer.Run(fsActual, "target-link", "target", "")
 	require.NoError(t, err)
+	require.Equal(t, testDir.Join("localized-target"), dst)
 
-	dst := testDir.Join("localized-target")
 	SetupDir(t, fsExpected, dst, map[string]string{
 		"kustomization.yaml": fmt.Sprintf(`resources:
 - %s
@@ -322,10 +323,10 @@ func TestRemoteTargetDefaultDst(t *testing.T) {
 	SetWorkingDir(t, testDir.String())
 
 	const target = simpleURL + urlQuery
-	err := localizer.Run(fsActual, target, "", "")
+	dst, err := localizer.Run(fsActual, target, "", "")
 	require.NoError(t, err)
+	require.Equal(t, testDir.Join("localized-simple-kustomize-v4.5.7"), dst)
 
-	dst := testDir.Join("localized-simple-kustomize-v4.5.7")
 	_, files := simplePathAndFiles(t)
 	SetupDir(t, fsExpected,
 		filepath.Join(dst, "api", "krusty", "testdata", "localize", "simple"),
@@ -364,7 +365,7 @@ func TestBadArgs(t *testing.T) {
 			fsExpected, fsActual, testDir := PrepareFs(t, nil, kust)
 			SetWorkingDir(t, testDir.String())
 
-			err := localizer.Run(fsActual, test.target, test.scope, test.dst)
+			_, err := localizer.Run(fsActual, test.target, test.scope, test.dst)
 			require.EqualError(t, err, test.err)
 
 			SetupDir(t, fsExpected, testDir.String(), kust)
@@ -383,9 +384,10 @@ openapi:
 		"kustomization.yaml": fmt.Sprintf(kustf, `https://raw.githubusercontent.com/kubernetes-sigs/kustomize/kustomize/v4.5.7/api/krusty/testdata/customschema.json`),
 	})
 
-	dst := testDir.Join("dst")
-	err := localizer.Run(fsActual, testDir.String(), "", dst)
+	newDir := testDir.Join("dst")
+	dst, err := localizer.Run(fsActual, testDir.String(), "", newDir)
 	require.NoError(t, err)
+	require.Equal(t, newDir, dst)
 
 	localizedPath := filepath.Join(LocalizeDir, "raw.githubusercontent.com",
 		"kubernetes-sigs", "kustomize", "kustomize", "v4.5.7", "api", "krusty",
@@ -404,9 +406,10 @@ func TestRemoteRoot(t *testing.T) {
 `, simpleURL+urlQuery),
 	})
 
-	dst := testDir.Join("dst")
-	err := localizer.Run(fsActual, testDir.String(), "", dst)
+	newDir := testDir.Join("dst")
+	dst, err := localizer.Run(fsActual, testDir.String(), "", newDir)
 	require.NoError(t, err)
+	require.Equal(t, newDir, dst)
 
 	localizedPath, files := simplePathAndFiles(t)
 	SetupDir(t, fsExpected, dst, map[string]string{
@@ -427,9 +430,10 @@ func TestNestedRemoteRoots(t *testing.T) {
 `,
 	})
 
-	dst := testDir.Join("dst")
-	err := localizer.Run(fsActual, testDir.String(), "", dst)
+	newDir := testDir.Join("dst")
+	dst, err := localizer.Run(fsActual, testDir.String(), "", newDir)
 	require.NoError(t, err)
+	require.Equal(t, newDir, dst)
 
 	localizedPath, files := remotePathAndFiles(t)
 	SetupDir(t, fsExpected, dst, map[string]string{
@@ -450,15 +454,13 @@ func TestResourcesRepoNotFile(t *testing.T) {
 	}
 	fsExpected, fsActual, testDir := PrepareFs(t, nil, kustomization)
 
-	err := localizer.Run(fsActual, testDir.String(), "", testDir.Join("dst"))
+	_, err := localizer.Run(fsActual, testDir.String(), "", testDir.Join("dst"))
 
-	const readmeErr = `mapping values are not allowed in this context`
-	fileErr := fmt.Sprintf(`invalid resource at file "%s": MalformedYAMLError:`, repo)
+	fileErr := fmt.Sprintf(`invalid resource at file "%s"`, repo)
 	rootErr := fmt.Sprintf(`unable to localize root "%s": unable to find one of 'kustomization.yaml', 'kustomization.yml' or 'Kustomization'`, repo)
 	var actualErr PathLocalizeError
 	require.ErrorAs(t, err, &actualErr)
 	require.Equal(t, repo, actualErr.Path)
-	require.ErrorContains(t, actualErr.FileError, readmeErr)
 	require.ErrorContains(t, actualErr.FileError, fileErr)
 	require.ErrorContains(t, actualErr.RootError, rootErr)
 
@@ -475,7 +477,7 @@ func TestRemoteRootNoRef(t *testing.T) {
 	}
 	fsExpected, fsActual, testDir := PrepareFs(t, nil, kustomization)
 
-	err := localizer.Run(fsActual, testDir.String(), "", testDir.Join("dst"))
+	_, err := localizer.Run(fsActual, testDir.String(), "", testDir.Join("dst"))
 
 	const fileErr = "invalid file reference: URL is a git repository"
 	rootErr := fmt.Sprintf(`localize remote root "%s" missing ref query string parameter`, root)
@@ -499,7 +501,7 @@ func TestExistingCacheDir(t *testing.T) {
 	}
 	fsExpected, fsActual, testDir := PrepareFs(t, []string{LocalizeDir}, file)
 
-	err := localizer.Run(fsActual, testDir.String(), "", testDir.Join("dst"))
+	_, err := localizer.Run(fsActual, testDir.String(), "", testDir.Join("dst"))
 	require.ErrorContains(t, err, fmt.Sprintf(`already contains localized-files needed to store file "%s"`, remoteFile))
 
 	SetupDir(t, fsExpected, testDir.String(), file)
@@ -520,9 +522,10 @@ minecraftServer:
 		filepath.Join("nested", "dirs", "home", "name"),
 	}, files)
 
-	dst := testDir.Join("dst")
-	err := localizer.Run(fsActual, testDir.String(), "", dst)
+	newDir := testDir.Join("dst")
+	dst, err := localizer.Run(fsActual, testDir.String(), "", newDir)
 	require.NoError(t, err)
+	require.Equal(t, newDir, dst)
 
 	SetupDir(t, fsExpected, dst, files)
 	CheckFs(t, dst, fsExpected, fsActual)
@@ -555,9 +558,10 @@ helmGlobals:
 		filepath.Join("target", "home-link"): "home",
 	})
 
-	dst := scope.Join("dst")
-	err := localizer.Run(fsActual, scope.Join("target"), scope.String(), dst)
+	newDir := scope.Join("dst")
+	dst, err := localizer.Run(fsActual, scope.Join("target"), scope.String(), newDir)
 	require.NoError(t, err)
+	require.Equal(t, newDir, dst)
 
 	SetupDir(t, fsExpected, dst, map[string]string{
 		filepath.Join("target", "Kustomization"): fmt.Sprintf(`helmCharts:
@@ -594,9 +598,10 @@ helmChartInflationGenerator:
 	})
 	link(t, target, map[string]string{"charts": "home"})
 
-	dst := target.Join("dst")
-	err := localizer.Run(fsActual, target.String(), "", dst)
+	newDir := target.Join("dst")
+	dst, err := localizer.Run(fsActual, target.String(), "", newDir)
 	require.NoError(t, err)
+	require.Equal(t, newDir, dst)
 
 	SetupDir(t, fsExpected, dst, map[string]string{
 		"kustomization.yaml": `helmChartInflationGenerator:
@@ -634,9 +639,10 @@ func TestHelmHomeEscapesScope(t *testing.T) {
 		filepath.Join("target", "home", "file-link"): "file",
 	})
 
-	dst := testDir.Join("dst")
-	err := localizer.Run(fsActual, testDir.Join("target"), "", dst)
+	newDir := testDir.Join("dst")
+	dst, err := localizer.Run(fsActual, testDir.Join("target"), "", newDir)
 	require.NoError(t, err)
+	require.Equal(t, newDir, dst)
 
 	SetupDir(t, fsExpected, dst, map[string]string{
 		"kustomization.yaml": `helmGlobals:
@@ -644,5 +650,36 @@ func TestHelmHomeEscapesScope(t *testing.T) {
 `,
 	})
 	require.NoError(t, fsExpected.Mkdir(filepath.Join(dst, "home")))
+	CheckFs(t, dst, fsExpected, fsActual)
+}
+
+func TestSymlinkedFileSource(t *testing.T) {
+	// target (and scope)
+	// - kustomization
+	// - file
+	// - link to file
+	fsExpected, fsActual, target := PrepareFs(t, nil, map[string]string{
+		"kustomization.yaml": `configMapGenerator:
+- files:
+  - filename-used-as-key-in-configMap
+`,
+		"different-key": "properties",
+	})
+	link(t, target, map[string]string{
+		"filename-used-as-key-in-configMap": "different-key",
+	})
+
+	newDir := target.Join("dst")
+	dst, err := localizer.Run(fsActual, target.String(), "", newDir)
+	require.NoError(t, err)
+	require.Equal(t, newDir, dst)
+
+	SetupDir(t, fsExpected, dst, map[string]string{
+		"kustomization.yaml": `configMapGenerator:
+- files:
+  - different-key
+`,
+		"different-key": "properties",
+	})
 	CheckFs(t, dst, fsExpected, fsActual)
 }

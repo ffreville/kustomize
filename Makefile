@@ -3,7 +3,7 @@
 #
 # Makefile for kustomize CLI and API.
 
-LATEST_V4_RELEASE=v4.5.6
+LATEST_V4_RELEASE=v4.5.7
 
 SHELL := /usr/bin/env bash
 GOOS = $(shell go env GOOS)
@@ -75,7 +75,8 @@ $(MYGOBIN)/pluginator:
 # Build from local source.
 $(MYGOBIN)/kustomize: build-kustomize-api
 	cd kustomize; \
-	go install .
+	go install -ldflags "-X sigs.k8s.io/kustomize/api/provenance.buildDate=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+	.
 
 kustomize: $(MYGOBIN)/kustomize
 
@@ -151,7 +152,7 @@ functions-examples-all:
 	done
 
 test-go-mod:
-	./hack/for-each-module.sh "go list -m -json all > /dev/null && go mod tidy -v"
+	./hack/for-each-module.sh "\$$KUSTOMIZE_ROOT/hack/with-unpinned-kust-dev.sh 'go mod tidy -v'"
 
 .PHONY:
 verify-kustomize-e2e: $(MYGOBIN)/mdrip $(MYGOBIN)/kind
