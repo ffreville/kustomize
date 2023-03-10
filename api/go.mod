@@ -4,10 +4,12 @@ go 1.19
 
 require (
 	filippo.io/age v1.1.1
+	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d
 	github.com/evanphx/json-patch v4.11.0+incompatible
 	github.com/go-errors/errors v1.4.2
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/imdario/mergo v0.3.6
+	github.com/mitchellh/go-homedir v1.1.0
 	github.com/stretchr/testify v1.8.1
 	golang.org/x/crypto v0.4.0
 	golang.org/x/term v0.3.0
